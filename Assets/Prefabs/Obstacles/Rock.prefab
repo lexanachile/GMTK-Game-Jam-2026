@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 9180879901258879560}
   - component: {fileID: 7407056715873439637}
   - component: {fileID: 819080799675497428}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: RockSprite
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -148,7 +148,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5595075288540813123}
   - component: {fileID: 1782745215619573024}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Rock
   m_TagString: Untagged
   m_Icon: {fileID: 0}
