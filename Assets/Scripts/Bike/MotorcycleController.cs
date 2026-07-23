@@ -142,91 +142,68 @@ public class MotorcycleController : MonoBehaviour
 
     private void ApplySteering()
     {
-        float forwardSpeed =
-            Vector2.Dot(
-                rb.linearVelocity,
-                Forward
-            );
+        float forwardSpeed = Vector2.Dot(rb.linearVelocity, Forward);
+        float speed = Mathf.Abs(forwardSpeed);
 
-        float speed =
-            Mathf.Abs(forwardSpeed);
-
-        if (speed < 0.05f)
+        // почти стоим - руль не работает
+        if (speed < 2f)
+        {
             return;
+        }
 
-        float speedPercent =
-            Mathf.Clamp01(
-                speed / maxSpeed
-            );
+        // ограничиваем максимальный угол поворота
+        float speedFactor = Mathf.Clamp01(speed / maxSpeed);
 
-        float steeringMultiplier =
+        float maxSteer =
             Mathf.Lerp(
                 0.35f,
                 1f,
-                speedPercent
+                speedFactor
             );
-
-        float reverseMultiplier =
-            forwardSpeed < 0f
-                ? -1f
-                : 1f;
 
         float torque =
             -inputX *
             steeringPower *
-            steeringMultiplier *
-            reverseMultiplier;
+            maxSteer;
+
+        if (forwardSpeed < 0)
+            torque *= -1f;
 
         rb.AddTorque(
             torque,
             ForceMode2D.Force
         );
     }
-
+    
     private void ApplyGrip()
     {
-        float forwardVelocity =
-            Vector2.Dot(
-                rb.linearVelocity,
-                Forward
-            );
+        float forwardSpeed = Vector2.Dot(rb.linearVelocity, Forward);
 
-        float sideVelocity =
-            Vector2.Dot(
-                rb.linearVelocity,
-                Right
-            );
+        Vector2 forwardVelocity = Forward * forwardSpeed;
 
-        float speedPercent =
-            Mathf.Clamp01(
-                rb.linearVelocity.magnitude /
-                maxSpeed
-            );
+        Vector2 sideVelocity = rb.linearVelocity - forwardVelocity;
 
-        float grip =
-            Mathf.Lerp(
-                lowSpeedGrip,
-                highSpeedGrip,
-                speedPercent
-            );
+        float speed = rb.linearVelocity.magnitude;
 
-        grip *= Mathf.Lerp(
-            1f,
-            steeringDriftMultiplier,
-            Mathf.Abs(inputX)
+        float grip = Mathf.Lerp(
+            3f,
+            0.8f,
+            speed / maxSpeed
         );
 
-        sideVelocity =
-            Mathf.Lerp(
-                sideVelocity,
-                0f,
-                grip *
-                Time.fixedDeltaTime
-            );
+        if (Mathf.Abs(inputX) > 0.1f)
+        {
+            grip *= 0.25f;
+        }
+
+        sideVelocity = Vector2.Lerp(
+            sideVelocity,
+            Vector2.zero,
+            grip * Time.fixedDeltaTime
+        );
 
         rb.linearVelocity =
-            Forward * forwardVelocity +
-            Right * sideVelocity;
+            forwardVelocity + sideVelocity;
     }
 
     private void ApplyRollingResistance()
@@ -243,13 +220,15 @@ public class MotorcycleController : MonoBehaviour
 
     private void ApplyAngularDamping()
     {
-        rb.angularVelocity =
-            Mathf.Lerp(
-                rb.angularVelocity,
-                0f,
-                angularDamping *
-                Time.fixedDeltaTime
-            );
+        if (Mathf.Abs(inputX) < 0.1f)
+        {
+            rb.angularVelocity =
+                Mathf.Lerp(
+                    rb.angularVelocity,
+                    0f,
+                    angularDamping * Time.fixedDeltaTime
+                );
+        }
 
         rb.angularVelocity =
             Mathf.Clamp(
