@@ -4,9 +4,13 @@ using System.Collections.Generic;
 /// <summary>
 /// Level 3 rope:
 /// - Gameplay: one-way max-distance constraint (pulls cargo only, never slows the bike)
-/// - Corner wrap: rope path bends around obstacles via raycasts
-/// - Visual: Verlet simulation (no Rigidbody) + wall push-out + LineRenderer
-/// - Optimization: adaptive segment count, LOD, tension visualization
+/// - Corner wrap (gameplay): rope path bends around obstacles via raycasts
+/// - Visual: ONE always-on Verlet chain. No modes, no resets, no teleports.
+///   * FIXED material rest length (= maxRopeLength) — never shrinks with path → no spring snap
+///   * Extension-only constraints — slack folds/overlaps freely
+///   * Ground sleep — laid segments (esp. cargo end) stay put until real tension arrives
+///   * Bike-end slack injection on reverse — new coils stack on top of old ones
+///   * Walls: penetration-only push (no outside magnetic shell)
 /// </summary>
 [RequireComponent(typeof(LineRenderer))]
 public class LassoRope : MonoBehaviour
@@ -30,7 +34,9 @@ public class LassoRope : MonoBehaviour
     [Tooltip("Legacy stretch multiplier kept for inspector compatibility; effective max = base * this")]
     [SerializeField, Range(1f, 3f)] private float maxStretchMultiplier = 1.15f;
 
-    [Header("Corner Wrap")]
+    [Header("Corner Wrap (gameplay)")]
+    [Tooltip("If true, the rope computes a raycast wrap path for gameplay length. Disable this for purely physical wrapping around colliders.")]
+    [SerializeField] private bool useCornerWrap = false;
     [Tooltip("Layers the rope wraps around (buildings, obstacles)")]
     [SerializeField] private LayerMask ropeCollisionMask = ~0;
     [Tooltip("Offset pins off wall surface so rope does not sink into colliders")]
@@ -38,47 +44,65 @@ public class LassoRope : MonoBehaviour
     [SerializeField] private int maxWrapPoints = 12;
     [SerializeField] private int wrapSolveIterations = 3;
 
-    [Header("Verlet Simulation")]
-    [Tooltip("Number of Verlet particles (more = smoother rope, more CPU)")]
-    [SerializeField] private int segmentCount = 16;
-    [Tooltip("Solver iterations per frame (higher = stiffer rope)")]
-    [SerializeField] private int verletIterations = 3;
-    [Tooltip("Velocity damping per frame (0.9-0.99)")]
-    [SerializeField, Range(0.8f, 0.999f)] private float verletDamping = 0.98f;
-    [Tooltip("Downward gravity for natural sag")]
-    [SerializeField] private float verletGravity = 3f;
-    [Tooltip("Collision radius for wall push-out")]
-    [SerializeField] private float verletCollisionRadius = 0.15f;
-    [Tooltip("Enable wall collision for Verlet particles")]
+    [Header("Verlet Chain (always on)")]
+    [Tooltip("Number of particles. More = smoother coils. Min 24 enforced.")]
+    [SerializeField] private int segmentCount = 40;
+    [Tooltip("Velocity damping per frame. Higher = rope settles faster, less bounce.")]
+    [SerializeField, Range(0.8f, 0.999f)] private float verletDamping = 0.94f;
+    [Tooltip("Wall collision: ONLY pushes particles that are inside geometry (no outside magnetic shell).")]
+    [SerializeField] private float verletCollisionRadius = 0.12f;
     [SerializeField] private bool verletWallCollision = true;
+    [Tooltip("Downward gravity for the chain. Top-down game usually keeps this at 0.")]
+    [SerializeField, Range(0f, 20f)] private float verletGravity = 0f;
+    [Tooltip("Segments push out of colliders when they physically penetrate. This lets the rope wrap around obstacles without a raycast wrap path.")]
+    [SerializeField] private bool segmentWallCollision = true;
+    [Tooltip("Thickness of each segment for physical wrap detection. Small value = less popping, more allowed clipping.")]
+    [SerializeField] private float segmentCollisionRadius = 0.06f;
 
-    [Header("Adaptive Optimization")]
-    [Tooltip("Reduce segments when rope is taut (0 = disabled, 0.5 = half segments when fully taut)")]
-    [SerializeField, Range(0f, 0.8f)] private float adaptiveSegmentReduction = 0.4f;
-    [Tooltip("When taut, snap visual particles to wrap path (no free sag)")]
-    [SerializeField] private bool skipVerletWhenTaut = true;
-    [Tooltip("Reduce collision checks when rope is far from camera")]
+    [Header("Ground Friction (lasso lies still)")]
+    [Tooltip("Below this speed (u/s) a particle hard-sleeps. Keeps cargo-end coils frozen until tension.")]
+    [SerializeField] private float sleepSpeed = 2f;
+    [Tooltip("Velocity kept when fully asleep. Lower = laid rope freezes harder.")]
+    [SerializeField, Range(0f, 0.9f)] private float groundFriction = 0.5f;
+
+    [Header("Coiling")]
+    [Tooltip("Mild straightening only when nearly taut. 0 while slack so loops can stack/overlap.")]
+    [SerializeField, Range(0f, 0.25f)] private float bendingStiffness = 0.08f;
+    [Tooltip("Soft pull of free particles toward gameplay wrap path when taut (no hard pin snap).")]
+    [SerializeField, Range(0f, 1f)] private float wrapFollowStrength = 0.35f;
+    [Tooltip("Tension where wrap-follow begins (smooth ramp, not a mode switch).")]
+    [SerializeField, Range(0.5f, 0.98f)] private float wrapFollowStartTension = 0.75f;
+    [Tooltip("Hard wrap pinning starts only above this tension.")]
+    [SerializeField, Range(0.5f, 0.99f)] private float wrapPinTension = 0.95f;
+    [Tooltip("Enable repulsion between non-neighbour strands. Off by default so coils can overlap freely.")]
+    [SerializeField] private bool selfCollision = false;
+    [Tooltip("Separation distance used when self-collision is enabled.")]
+    [SerializeField] private float selfCollisionRadius = 0.18f;
+
+    [Header("Solver")]
+    [Tooltip("Base constraint iterations per substep (low = slack drapes; high = stiffer)")]
+    [SerializeField, Range(1, 12)] private int baseIterations = 3;
+    [Tooltip("Extra iterations added with tension (continuous stiffening, no binary switch)")]
+    [SerializeField, Range(0, 16)] private int tautExtraIterations = 6;
+    [SerializeField, Range(1, 6)] private int minSubsteps = 2;
+    [SerializeField, Range(1, 8)] private int maxSubsteps = 4;
+
+    [Header("LOD")]
     [SerializeField] private bool lodCollision = true;
-    [Tooltip("Distance from camera to reduce quality")]
     [SerializeField] private float lodDistance = 30f;
 
     [Header("Tension Visualization")]
-    [Tooltip("Change rope color based on tension")]
     [SerializeField] private bool visualizeTension = true;
-    [Tooltip("Color when rope is slack")]
     [SerializeField] private Color slackColor = new Color(0.45f, 0.25f, 0.08f, 1f);
-    [Tooltip("Color when rope is fully taut")]
     [SerializeField] private Color tautColor = new Color(0.8f, 0.3f, 0.1f, 1f);
-    [Tooltip("Color when rope is over-stretched (pulling cargo)")]
     [SerializeField] private Color overstretchColor = new Color(1f, 0.2f, 0.1f, 1f);
 
     [Header("Visual")]
-    [SerializeField] private float sagForce = 2f;
     [SerializeField] private float ropeWidth = 0.3f;
     [SerializeField] private float textureTiling = 4f;
     [SerializeField] private float wobbleAmount = 0.005f;
     [SerializeField] private float wobbleSpeed = 2f;
-    [SerializeField] private int smoothSubdivisions = 3;
+    [SerializeField, Range(0, 4)] private int smoothSubdivisions = 1;
     [SerializeField] private Color ropeColor = new Color(0.45f, 0.25f, 0.08f, 1f);
 
     [Header("Legacy")]
@@ -92,25 +116,29 @@ public class LassoRope : MonoBehaviour
     private float maxRopeLength;
     private float time;
     private float currentTension;
-    private int activeSegmentCount;
     private Camera mainCamera;
 
-    // Path: start hitch → wrap pins → end hitch
+    // Gameplay path: start hitch → wrap pins → end hitch
     private readonly List<Vector2> path = new List<Vector2>(16);
     private readonly List<Vector2> wrapPins = new List<Vector2>(12);
 
-    // Verlet particles
+    // Verlet chain — the ONLY visual representation
     private VerletParticle[] particles;
     private VerletConstraint[] constraints;
     private bool verletInitialized;
+    private Vector2 prevBikePos;
+    private Vector2 prevCargoPos;
+    private float materialRest; // fixed segment rest = maxRopeLength / (n-1)
 
     // Draw buffers (no GC in LateUpdate)
-    private readonly List<Vector3> drawPoints = new List<Vector3>(32);
-    private readonly List<Vector3> smoothed = new List<Vector3>(64);
-    private Vector3[] linePositions = new Vector3[64];
+    private readonly List<Vector3> drawPoints = new List<Vector3>(64);
+    private readonly List<Vector3> smoothed = new List<Vector3>(96);
+    private Vector3[] linePositions = new Vector3[96];
 
     private readonly RaycastHit2D[] rayHits = new RaycastHit2D[4];
     private readonly Collider2D[] overlapHits = new Collider2D[8];
+    private readonly ColliderDistance2D[] distScratch = new ColliderDistance2D[1];
+    private readonly List<RaycastHit2D> circleCastResults = new List<RaycastHit2D>(4);
     private ContactFilter2D wrapFilter;
     private PhysicsMaterial2D cargoZeroFrictionMaterial;
 
@@ -119,6 +147,7 @@ public class LassoRope : MonoBehaviour
         public Vector2 position;
         public Vector2 previousPosition;
         public bool pinned;
+        public bool sleeping;
     }
 
     private struct VerletConstraint
@@ -161,6 +190,8 @@ public class LassoRope : MonoBehaviour
         lineRenderer.useWorldSpace = true;
         lineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         lineRenderer.sortingOrder = 10;
+        lineRenderer.numCornerVertices = 5;
+        lineRenderer.numCapVertices = 3;
         lineRenderer.startColor = ropeColor;
         lineRenderer.endColor = ropeColor;
         lineRenderer.startWidth = ropeWidth;
@@ -181,7 +212,6 @@ public class LassoRope : MonoBehaviour
         wrapFilter.SetLayerMask(ropeCollisionMask);
 
         mainCamera = Camera.main;
-        activeSegmentCount = segmentCount;
     }
 
     private void Start()
@@ -213,9 +243,14 @@ public class LassoRope : MonoBehaviour
 
         maxRopeLength *= Mathf.Clamp(maxStretchMultiplier, 1f, 1.5f);
 
+        prevBikePos = startPoint.position;
+        prevCargoPos = endPoint.position;
+
         ConfigureCargoBody();
         RebuildPath();
         InitializeVerlet();
+
+        materialRest = maxRopeLength / Mathf.Max(particles.Length - 1, 1);
     }
 
     private void ConfigureCargoBody()
@@ -259,16 +294,15 @@ public class LassoRope : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (startPoint == null || endPoint == null)
+        if (startPoint == null || endPoint == null || !verletInitialized)
             return;
 
         time += Time.deltaTime * wobbleSpeed;
 
-        // Rebuild with interpolated hitch positions so visual wrap matches rendered bike/cargo
+        // Rebuild with interpolated hitch positions so visual matches rendered bike/cargo
         RebuildPath();
         UpdateTension();
-        UpdateAdaptiveSegments();
-        UpdateVerlet();
+        SimulateRope();
         DrawRope();
         UpdateTensionColor();
     }
@@ -316,80 +350,17 @@ public class LassoRope : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
-    // Adaptive optimization
-    // -------------------------------------------------------------------------
-
-    private void UpdateAdaptiveSegments()
-    {
-        if (adaptiveSegmentReduction <= 0f)
-        {
-            activeSegmentCount = segmentCount;
-            return;
-        }
-
-        float tautness = Mathf.Clamp01(currentTension);
-        float reduction = adaptiveSegmentReduction * tautness;
-        activeSegmentCount = Mathf.Max(4, Mathf.RoundToInt(segmentCount * (1f - reduction)));
-
-        if (lodCollision && mainCamera != null)
-        {
-            Vector3 midpoint = (startPoint.position + endPoint.position) * 0.5f;
-            float distToCamera = Vector3.Distance(midpoint, mainCamera.transform.position);
-            if (distToCamera > lodDistance)
-            {
-                activeSegmentCount = Mathf.Max(4, activeSegmentCount / 2);
-            }
-        }
-    }
-
-    private bool ShouldSkipVerlet()
-    {
-        if (!skipVerletWhenTaut)
-            return false;
-
-        return currentTension > 0.95f && currentTension < 1.05f;
-    }
-
-    // -------------------------------------------------------------------------
-    // Verlet simulation
+    // Verlet simulation — runs EVERY frame, no modes, no resets
     // -------------------------------------------------------------------------
 
     private void InitializeVerlet()
     {
-        int count = Mathf.Max(segmentCount, 4);
+        int count = Mathf.Max(segmentCount, 24);
         particles = new VerletParticle[count];
         constraints = new VerletConstraint[count - 1];
 
         PlaceParticlesAlongPath(resetVelocity: true);
-        UpdateVerletRestLengths();
-
         verletInitialized = true;
-    }
-
-    /// <summary>
-    /// Fixed rope length split across constraints. Slack (path shorter than max)
-    /// leaves leftover length for sag; taut path uses path length so rope hugs wraps.
-    /// </summary>
-    private void UpdateVerletRestLengths()
-    {
-        if (particles == null || constraints == null || particles.Length < 2)
-            return;
-
-        float pathLen = GetPathLength();
-        float visualLen = Mathf.Max(pathLen, maxRopeLength);
-        if (currentTension >= 0.98f)
-            visualLen = Mathf.Max(pathLen, 0.01f);
-
-        float rest = visualLen / (particles.Length - 1);
-        for (int i = 0; i < constraints.Length; i++)
-        {
-            constraints[i] = new VerletConstraint
-            {
-                a = i,
-                b = i + 1,
-                restLength = rest
-            };
-        }
     }
 
     private void PlaceParticlesAlongPath(bool resetVelocity)
@@ -426,7 +397,6 @@ public class LassoRope : MonoBehaviour
 
         particles[0].pinned = true;
         particles[particles.Length - 1].pinned = true;
-        PinWrapParticles(resetVelocity);
     }
 
     private Vector2 SamplePath(float distanceAlong)
@@ -455,104 +425,271 @@ public class LassoRope : MonoBehaviour
         return path[path.Count - 1];
     }
 
-    private void UpdateVerlet()
+    /// <summary>
+    /// The one and only rope simulation. Cable constraints (extension-only) mean
+    /// compression is free: the chain folds and coils instead of springing.
+    /// Ground friction stops slow particles, so distant laid rope — including the
+    /// cargo end — stays motionless until genuine tension propagates through.
+    /// Walls are corrected only where the rope has actually penetrated, removing
+    /// the old "magnetic shell" behaviour.
+    /// </summary>
+    private void SimulateRope()
     {
-        if (!verletInitialized)
-            return;
+        int n = particles.Length;
 
-        // Taut / skip: snap visual to wrap path (fixes freeze + through-wall look)
-        if (ShouldSkipVerlet() || currentTension >= 0.98f)
+        // Fixed material rest length: never shrinks below maxRopeLength.
+        // A tiny overstretch term lets the visual chain follow the cargo when
+        // the gameplay constraint has pulled it slightly beyond the limit.
+        float rest = materialRest * (1f + 0.05f * Mathf.Max(0f, currentTension - 1f));
+        for (int i = 0; i < constraints.Length; i++)
         {
-            PlaceParticlesAlongPath(resetVelocity: true);
-            UpdateVerletRestLengths();
-            return;
+            constraints[i].a = i;
+            constraints[i].b = i + 1;
+            constraints[i].restLength = rest;
         }
 
-        UpdateVerletRestLengths();
-
-        // Keep ends and wrap pins locked to gameplay path
-        particles[0].position = startPoint.position;
-        particles[0].pinned = true;
-        particles[particles.Length - 1].position = endPoint.position;
-        particles[particles.Length - 1].pinned = true;
-        // Clear stale wrap pins from previous frame, then re-pin ends + corners
-        for (int i = 1; i < particles.Length - 1; i++)
-            particles[i].pinned = false;
-        PinWrapParticles(resetVelocity: false);
-
         float dt = Time.deltaTime;
-        float dt2 = dt * dt;
-        float gravity = verletGravity + sagForce;
+        if (dt <= 0f)
+            return;
 
-        float pathLen = Mathf.Max(GetPathLength(), 0.001f);
-        // Pull free particles toward path corridor so slack rope still follows wraps
-        float pathAttract = Mathf.Lerp(0.08f, 0.4f, Mathf.Clamp01(currentTension));
+        // Substeps auto-scale with bike speed so the dragged end never tunnels
+        float bikeSpeed = bikeRb != null ? bikeRb.linearVelocity.magnitude : 0f;
+        int substeps = Mathf.Clamp(
+            Mathf.CeilToInt(bikeSpeed * dt / Mathf.Max(rest * 0.75f, 0.01f)),
+            minSubsteps, maxSubsteps);
+        float subDt = dt / substeps;
+        float subDt2 = subDt * subDt;
 
-        for (int i = 0; i < particles.Length; i++)
+        // Normalize per-frame parameters to per-substep so feel is substep-independent
+        float damp = Mathf.Pow(verletDamping, 1f / substeps);
+        float friction = Mathf.Pow(groundFriction, 1f / substeps);
+        float sleepThreshold = sleepSpeed * 0.25f;
+
+        int iterations = baseIterations + Mathf.RoundToInt(tautExtraIterations * Mathf.Clamp01(currentTension));
+
+        float wrapT = Mathf.Clamp01(
+            (currentTension - wrapFollowStartTension) / Mathf.Max(1f - wrapFollowStartTension, 0.001f));
+        float effectiveBending = bendingStiffness * Mathf.Clamp01(currentTension); // no bend while slack
+        bool pinWraps = currentTension >= wrapPinTension;
+
+        Vector2 bikeFrom = prevBikePos;
+        Vector2 cargoFrom = prevCargoPos;
+        Vector2 bikeTo = startPoint.position;
+        Vector2 cargoTo = endPoint.position;
+
+        for (int s = 0; s < substeps; s++)
+        {
+            float alpha = (s + 1) / (float)substeps;
+            Vector2 bikePos = Vector2.Lerp(bikeFrom, bikeTo, alpha);
+            Vector2 cargoPos = Vector2.Lerp(cargoFrom, cargoTo, alpha);
+
+            // Release wrap pins from the previous substep; ends stay pinned
+            for (int i = 1; i < n - 1; i++)
+                particles[i].pinned = false;
+
+            particles[0].position = bikePos;
+            particles[0].pinned = true;
+            particles[n - 1].position = cargoPos;
+            particles[n - 1].pinned = true;
+
+            // Integrate
+            for (int i = 1; i < n - 1; i++)
+            {
+                Vector2 pos = particles[i].position;
+                Vector2 vel = (pos - particles[i].previousPosition) * damp;
+
+                // Static friction: very slow particles freeze to the ground.
+                // This is what keeps the cargo-end coils in place until tension
+                // arrives, and lets the bike lay new coils on top of old ones.
+                float speed = vel.magnitude / Mathf.Max(subDt, 0.00001f);
+                if (speed < sleepThreshold)
+                {
+                    vel = Vector2.zero;
+                    particles[i].sleeping = true;
+                }
+                else
+                {
+                    particles[i].sleeping = false;
+                    if (speed < sleepSpeed)
+                        vel *= Mathf.Lerp(friction, 1f, speed / Mathf.Max(sleepSpeed, 0.001f));
+                }
+
+                if (verletGravity > 0f)
+                    vel += Vector2.down * (verletGravity * (1f - Mathf.Clamp01(currentTension))) * subDt2;
+
+                particles[i].previousPosition = pos;
+                particles[i].position = pos + vel;
+            }
+
+            ApplyBendingResistance(effectiveBending);
+
+            // Soft wrap-follow when taut: rope hugs the gameplay path smoothly
+            // instead of snapping to it.
+            if (wrapT > 0f && wrapFollowStrength > 0f)
+                ApplyWrapFollow(wrapT * wrapFollowStrength, subDt);
+
+            for (int it = 0; it < iterations; it++)
+            {
+                particles[0].position = bikePos;
+                particles[n - 1].position = cargoPos;
+                if (pinWraps)
+                    PinWrapParticles(resetVelocity: false);
+                SolveCableConstraints();
+            }
+
+            // Wake particles that were moved by constraints or the bike
+            for (int i = 1; i < n - 1; i++)
+            {
+                if (particles[i].sleeping &&
+                    (particles[i].position - particles[i].previousPosition).sqrMagnitude > 0.0001f)
+                {
+                    particles[i].sleeping = false;
+                }
+            }
+        }
+
+        prevBikePos = bikeTo;
+        prevCargoPos = cargoTo;
+
+        bool farLod = false;
+        if (lodCollision && mainCamera != null)
+        {
+            Vector3 midpoint = (bikeTo + cargoTo) * 0.5f;
+            farLod = Vector3.Distance(midpoint, mainCamera.transform.position) > lodDistance;
+        }
+
+        // Once per frame (cheap): wall push-out only on actual penetration
+        if (verletWallCollision && !farLod)
+        {
+            for (int i = 1; i < n - 1; i++)
+            {
+                if (particles[i].pinned)
+                    continue;
+                PushOutOfWalls(ref particles[i]);
+            }
+        }
+
+        // Physical wrap: segments push out of colliders they actually penetrate.
+        // This lets the rope coil around corners without a raycast wrap path.
+        if (segmentWallCollision && !farLod)
+            SolveSegmentWallCollision();
+
+        // Self-collision is disabled by default: the rope can coil on top of itself.
+        if (selfCollision && !farLod && currentTension < wrapPinTension)
+            SolveSelfCollision();
+    }
+
+    /// <summary>
+    /// Extension-only distance constraints (rope/cable). Distance may shrink freely —
+    /// that is what lets the lasso pile on the ground instead of springing.
+    /// </summary>
+    private void SolveCableConstraints()
+    {
+        for (int i = 0; i < constraints.Length; i++)
+        {
+            int a = constraints[i].a;
+            int b = constraints[i].b;
+            float rest = constraints[i].restLength;
+
+            Vector2 delta = particles[b].position - particles[a].position;
+            float dist = delta.magnitude;
+            if (dist < 0.0001f || dist <= rest)
+                continue;
+
+            float diff = (dist - rest) / dist;
+            Vector2 offset = delta * 0.5f * diff;
+
+            if (!particles[a].pinned)
+                particles[a].position += offset;
+            if (!particles[b].pinned)
+                particles[b].position -= offset;
+        }
+    }
+
+    /// <summary>
+    /// Weak pull toward the local straight line — only when taut.
+    /// While slack the stiffness is zero, so loops can stack and overlap freely.
+    /// </summary>
+    private void ApplyBendingResistance(float stiffness)
+    {
+        if (stiffness <= 0f)
+            return;
+
+        float k = stiffness * 0.5f;
+        for (int i = 1; i < particles.Length - 1; i++)
         {
             if (particles[i].pinned)
                 continue;
 
-            Vector2 pos = particles[i].position;
-            Vector2 prev = particles[i].previousPosition;
-            Vector2 vel = (pos - prev) * verletDamping;
-
-            vel += Vector2.down * gravity * dt2;
-
-            Vector2 guide = SamplePath((i / (float)(particles.Length - 1)) * pathLen);
-            pos = Vector2.Lerp(pos + vel, guide, pathAttract);
-
-            particles[i].previousPosition = particles[i].position;
-            particles[i].position = pos;
+            Vector2 mid = (particles[i - 1].position + particles[i + 1].position) * 0.5f;
+            particles[i].position += (mid - particles[i].position) * k;
         }
+    }
 
-        int iterations = verletIterations;
-        bool doCollision = verletWallCollision;
+    /// <summary>
+    /// Softly pull free particles toward the gameplay wrap path.
+    /// Strength is ramped by tension so the rope is not magnetically attracted
+    /// to corners while slack.
+    /// </summary>
+    private void ApplyWrapFollow(float strength, float subDt)
+    {
+        if (wrapPins.Count == 0 || particles == null || particles.Length < 3 || path.Count < 3)
+            return;
 
-        if (lodCollision && mainCamera != null)
+        float pathLen = Mathf.Max(GetPathLength(), 0.001f);
+        int n = particles.Length;
+        float rate = strength * subDt * 5f;
+
+        for (int i = 1; i < n - 1; i++)
         {
-            Vector3 midpoint = (startPoint.position + endPoint.position) * 0.5f;
-            float distToCamera = Vector3.Distance(midpoint, mainCamera.transform.position);
-            if (distToCamera > lodDistance)
-            {
-                iterations = Mathf.Max(1, iterations / 2);
-                doCollision = false;
-            }
+            if (particles[i].pinned)
+                continue;
+
+            float t = i / (float)(n - 1);
+            Vector2 target = SamplePath(t * pathLen);
+            particles[i].position = Vector2.Lerp(particles[i].position, target, rate);
         }
+    }
 
-        for (int iter = 0; iter < iterations; iter++)
+    /// <summary>
+    /// Optional weak repulsion between non-neighbour strands.
+    /// Disabled by default because the requested behaviour is overlapping coils.
+    /// </summary>
+    private void SolveSelfCollision()
+    {
+        float r = selfCollisionRadius;
+        if (r <= 0f)
+            return;
+
+        float r2 = r * r;
+        int n = particles.Length;
+
+        for (int i = 0; i < n - 3; i++)
         {
-            particles[0].position = startPoint.position;
-            particles[particles.Length - 1].position = endPoint.position;
-            PinWrapParticles(resetVelocity: false);
-
-            for (int i = 0; i < constraints.Length; i++)
+            for (int j = i + 3; j < n; j++)
             {
-                int a = constraints[i].a;
-                int b = constraints[i].b;
-                float rest = constraints[i].restLength;
-
-                Vector2 delta = particles[b].position - particles[a].position;
-                float dist = delta.magnitude;
-                if (dist < 0.0001f)
+                Vector2 delta = particles[j].position - particles[i].position;
+                float d2 = delta.sqrMagnitude;
+                if (d2 >= r2 || d2 < 0.00000001f)
                     continue;
 
-                float diff = (dist - rest) / dist;
-                Vector2 offset = delta * 0.5f * diff;
+                float d = Mathf.Sqrt(d2);
+                Vector2 push = delta / d * ((r - d) * 0.5f);
+                bool pinnedI = particles[i].pinned;
+                bool pinnedJ = particles[j].pinned;
 
-                if (!particles[a].pinned)
-                    particles[a].position += offset;
-                if (!particles[b].pinned)
-                    particles[b].position -= offset;
-            }
-
-            if (doCollision)
-            {
-                for (int i = 1; i < particles.Length - 1; i++)
+                if (!pinnedI && !pinnedJ)
                 {
-                    if (particles[i].pinned)
-                        continue;
-                    PushOutOfWalls(ref particles[i]);
+                    particles[i].position -= push;
+                    particles[j].position += push;
+                }
+                else if (!pinnedI)
+                {
+                    particles[i].position -= push * 2f;
+                }
+                else if (!pinnedJ)
+                {
+                    particles[j].position += push * 2f;
                 }
             }
         }
@@ -560,6 +697,7 @@ public class LassoRope : MonoBehaviour
 
     /// <summary>
     /// path = [start, wrap0..wrapN, end]. Locks nearest free particle to each wrap corner.
+    /// Only used near-taut; position snap is small because the rope is already near the corner.
     /// </summary>
     private void PinWrapParticles(bool resetVelocity)
     {
@@ -569,7 +707,6 @@ public class LassoRope : MonoBehaviour
         float pathLen = Mathf.Max(GetPathLength(), 0.001f);
         float acc = 0f;
 
-        // For each wrap pin at path[i+1], accumulate distance start→pin
         for (int p = 0; p < wrapPins.Count; p++)
         {
             acc += Vector2.Distance(path[p], path[p + 1]);
@@ -577,7 +714,6 @@ public class LassoRope : MonoBehaviour
                 Mathf.RoundToInt((acc / pathLen) * (particles.Length - 1)),
                 1, particles.Length - 2);
 
-            // Avoid collapsing multiple pins onto the same particle
             while (nearest < particles.Length - 2 && particles[nearest].pinned)
                 nearest++;
 
@@ -588,9 +724,14 @@ public class LassoRope : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Penetration-only wall correction. Uses OverlapPoint to detect particles
+    /// that are actually inside a collider, then pushes them out along the
+    /// surface normal. No outside magnetic shell.
+    /// </summary>
     private void PushOutOfWalls(ref VerletParticle p)
     {
-        int count = Physics2D.OverlapCircle(p.position, verletCollisionRadius, wrapFilter, overlapHits);
+        int count = Physics2D.OverlapCircle(p.position, 0.001f, wrapFilter, overlapHits);
         if (count == 0)
             return;
 
@@ -607,30 +748,113 @@ public class LassoRope : MonoBehaviour
                 continue;
 
             Vector2 closest = col.ClosestPoint(p.position);
-            Vector2 push = p.position - closest;
-            float pushDist = push.magnitude;
 
-            if (pushDist < 0.0001f)
+            // If ClosestPoint is not the particle itself, the particle is outside.
+            if ((closest - p.position).sqrMagnitude > 0.0001f)
+                continue;
+
+            // Choose an escape direction. Prefer the current velocity; if the
+            // particle is stationary, pick an arbitrary up vector.
+            Vector2 escape = (p.position - p.previousPosition).normalized;
+            if (escape.sqrMagnitude < 0.0001f)
+                escape = Vector2.up;
+
+            // Raycast from inside toward the surface to get a real normal.
+            RaycastHit2D hit = Physics2D.Raycast(p.position, escape, 0.5f, ropeCollisionMask);
+            if (hit.collider != null)
+                escape = hit.normal;
+            else
+                escape = -escape;
+
+            p.position += escape * 0.02f;
+        }
+    }
+
+    /// <summary>
+    /// Physical wrapping around obstacles. Each segment casts a small circle
+    /// along itself; if it touches/pierces geometry, both end particles are
+    /// pushed out along the surface normal. Works for EdgeCollider2D, boxes,
+    /// polygons, tilemaps and composite colliders. No raycast wrap path is
+    /// required, so the rope never snaps to preset pins.
+    /// </summary>
+    private void SolveSegmentWallCollision()
+    {
+        if (particles == null || particles.Length < 2)
+            return;
+
+        float radius = segmentCollisionRadius;
+        int n = particles.Length;
+
+        for (int i = 0; i < n - 1; i++)
+        {
+            if (particles[i].pinned && particles[i + 1].pinned)
+                continue;
+
+            Vector2 a = particles[i].position;
+            Vector2 b = particles[i + 1].position;
+            Vector2 delta = b - a;
+            float len = delta.magnitude;
+            if (len < 0.0001f)
+                continue;
+            Vector2 dir = delta / len;
+
+            // CircleCast gives the segment some thickness and catches tunneling.
+            circleCastResults.Clear();
+            int hitCount = Physics2D.CircleCast(a, radius, dir, wrapFilter, circleCastResults, len);
+            if (hitCount == 0)
+                continue;
+
+            RaycastHit2D hit = default;
+            bool found = false;
+            for (int h = 0; h < hitCount; h++)
             {
-                Vector2 delta = p.position - p.previousPosition;
-                push = delta.sqrMagnitude > 0.0001f ? delta.normalized : Vector2.up;
-                p.position = closest + push * (verletCollisionRadius + 0.01f);
+                RaycastHit2D candidate = circleCastResults[h];
+                if (candidate.collider == null)
+                    continue;
+
+                Rigidbody2D hitRb = candidate.rigidbody;
+                if (hitRb != null && (hitRb == bikeRb || hitRb == cargoRb))
+                    continue;
+                if (hitRb != null && hitRb.bodyType == RigidbodyType2D.Dynamic)
+                    continue;
+
+                hit = candidate;
+                found = true;
+                break;
             }
-            else if (pushDist < verletCollisionRadius)
-            {
-                p.position = closest + (push / pushDist) * verletCollisionRadius;
-            }
+
+            if (!found)
+                continue;
+
+            // fraction along the segment where the cast touched
+            float t = Mathf.Clamp01(hit.distance / Mathf.Max(len, 0.0001f));
+
+            Vector2 push = hit.normal * (radius + 0.01f);
+
+            if (!particles[i].pinned)
+                particles[i].position += push * (1f - t);
+            if (!particles[i + 1].pinned)
+                particles[i + 1].position += push * t;
         }
     }
 
     // -------------------------------------------------------------------------
-    // Path / corner wrap
+    // Path / corner wrap (gameplay)
     // -------------------------------------------------------------------------
 
     private void RebuildPath()
     {
         Vector2 start = startPoint.position;
         Vector2 end = endPoint.position;
+
+        if (!useCornerWrap)
+        {
+            wrapPins.Clear();
+            path.Clear();
+            path.Add(start);
+            path.Add(end);
+            return;
+        }
 
         for (int i = wrapPins.Count - 1; i >= 0; i--)
         {
@@ -864,52 +1088,36 @@ public class LassoRope : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
-    // Visual
+    // Visual — draw the particle chain directly, it IS the rope
     // -------------------------------------------------------------------------
 
     private void DrawRope()
     {
         drawPoints.Clear();
 
-        // Taut: draw gameplay path so adaptive LOD cannot skip corner pins (through-wall look)
-        if (currentTension >= 0.98f && path.Count >= 2)
-        {
-            for (int i = 0; i < path.Count; i++)
-                drawPoints.Add(path[i]);
-        }
-        else if (!verletInitialized || particles == null || particles.Length < 2)
-        {
-            if (path.Count >= 2)
-            {
-                for (int i = 0; i < path.Count; i++)
-                    drawPoints.Add(path[i]);
-            }
-            else
-            {
-                drawPoints.Add(startPoint.position);
-                drawPoints.Add(endPoint.position);
-            }
-        }
-        else
-        {
-            int step = Mathf.Max(1, particles.Length / Mathf.Max(activeSegmentCount, 2));
-            int last = particles.Length - 1;
-            for (int i = 0; i <= last; i++)
-            {
-                bool mustKeep = i == 0 || i == last || particles[i].pinned || (i % step == 0);
-                if (!mustKeep)
-                    continue;
+        int n = particles.Length;
+        int step = 1;
 
-                // Avoid duplicate consecutive points when pin lands on step sample
-                Vector3 p = particles[i].position;
-                if (drawPoints.Count > 0 && (drawPoints[drawPoints.Count - 1] - p).sqrMagnitude < 0.0001f)
-                    continue;
-
-                drawPoints.Add(p);
-            }
+        if (lodCollision && mainCamera != null)
+        {
+            Vector3 midpoint = (startPoint.position + endPoint.position) * 0.5f;
+            if (Vector3.Distance(midpoint, mainCamera.transform.position) > lodDistance)
+                step = 2;
         }
+
+        for (int i = 0; i < n; i += step)
+            drawPoints.Add(particles[i].position);
+        if ((n - 1) % step != 0)
+            drawPoints.Add(particles[n - 1].position);
 
         CatmullRomSmooth(drawPoints, smoothSubdivisions, smoothed);
+
+        // Hitch pins after smooth — bike/cargo must stay exact
+        if (smoothed.Count >= 2)
+        {
+            smoothed[0] = startPoint.position;
+            smoothed[smoothed.Count - 1] = endPoint.position;
+        }
 
         if (wobbleAmount > 0f && smoothed.Count > 1)
         {
@@ -1002,8 +1210,35 @@ public class LassoRope : MonoBehaviour
                 Gizmos.DrawWireSphere(particles[i].position, verletCollisionRadius);
         }
 
+        // Visual debug: all segments in green, hits in red
+        if (particles != null && Application.isPlaying)
+        {
+            for (int i = 0; i < particles.Length - 1; i++)
+            {
+                Vector2 a = particles[i].position;
+                Vector2 b = particles[i + 1].position;
+                Vector2 dir = b - a;
+                float len = dir.magnitude;
+                if (len < 0.0001f)
+                    continue;
+
+                Gizmos.color = Color.green;
+                Gizmos.DrawLine(a, b);
+
+                if (segmentWallCollision)
+                {
+                    RaycastHit2D hit = Physics2D.CircleCast(a, segmentCollisionRadius, dir / len, len, ropeCollisionMask);
+                    if (hit.collider != null)
+                    {
+                        Gizmos.color = Color.red;
+                        Gizmos.DrawLine(a, b);
+                    }
+                }
+            }
+        }
+
         // Tension indicator
-        if (visualizeTension)
+        if (visualizeTension && startPoint != null && endPoint != null)
         {
             Vector3 mid = (startPoint.position + endPoint.position) * 0.5f;
             Color tensionColor = currentTension < 0.8f ? slackColor :
