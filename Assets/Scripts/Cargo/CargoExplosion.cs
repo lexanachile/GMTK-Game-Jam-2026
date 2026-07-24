@@ -3,32 +3,20 @@ using System.Collections;
 
 public class CargoExplosion : MonoBehaviour
 {
-    [Header("Список префабов взрывов")]
+    [Header("Взрывы")]
     public GameObject[] explosionPrefabs;
-
-    [Header("Количество взрывов")]
     public int minExplosions = 3;
     public int maxExplosions = 5;
-
-    [Header("Размер")]
     public float minScale = 1f;
     public float maxScale = 2f;
-
-    [Header("Отклонение по позиции")]
     public float maxOffsetX = 0.5f;
     public float maxOffsetY = 0.5f;
-
-    [Header("Задержка от начала (сек)")]
     public float minDelay = 0f;
     public float maxDelay = 1f;
 
-
-    public GameObject restartPanel;
     private bool exploded = false;
 
-    // Если нужен и триггер – добавьте:
     private void OnTriggerEnter2D(Collider2D other) => TriggerExplosions();
-
     private void OnCollisionEnter2D(Collision2D collision) => TriggerExplosions();
 
     void TriggerExplosions()
@@ -36,81 +24,56 @@ public class CargoExplosion : MonoBehaviour
         if (exploded) return;
         exploded = true;
 
-        // Прячем бочку (отключаем коллайдер и спрайт)
-        Collider2D col = GetComponent<Collider2D>();
-        if (col != null) col.enabled = false;
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
-        if (sr != null) sr.enabled = false;
+        // Отключаем визуал, коллизии и управление (мотоцикл + коробка)
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.DisableCargo();  
+            GameManager.Instance.StopBike();
+        }
 
-        // Запускаем параллельные взрывы
-        StartCoroutine(SpawnExplosionsParallel());
+
+        StartCoroutine(SpawnExplosionsSequence());
     }
 
-    IEnumerator SpawnExplosionsParallel()
+    IEnumerator SpawnExplosionsSequence()
     {
         int count = Random.Range(minExplosions, maxExplosions + 1);
         if (explosionPrefabs == null || explosionPrefabs.Length == 0)
         {
-            //Debug.LogWarning("Нет префабов взрывов в списке!");
-            //Destroy(gameObject);
-            ChangeStateSpriteAndCollider(gameObject, false);
+            ShowRestartPanel();
             yield break;
         }
 
         float maxDelay = 0f;
-
         for (int i = 0; i < count; i++)
         {
             float delay = Random.Range(minDelay, maxDelay);
             if (delay > maxDelay) maxDelay = delay;
 
-            // Выбираем случайный префаб
             GameObject prefab = explosionPrefabs[Random.Range(0, explosionPrefabs.Length)];
-
-            // Случайное смещение
             Vector3 offset = new Vector3(Random.Range(-maxOffsetX, maxOffsetX),
                                          Random.Range(-maxOffsetY, maxOffsetY), 0f);
             Vector3 spawnPos = transform.position + offset;
-
-            // Случайный размер
             float scale = Random.Range(minScale, maxScale);
 
-            // Запускаем корутину, которая создаст взрыв через delay
             StartCoroutine(SpawnSingleExplosion(prefab, spawnPos, scale, delay));
         }
 
-        // Ждём самую долгую задержку и удаляем бочку
         yield return new WaitForSeconds(maxDelay + 0.1f);
         ShowRestartPanel();
-        //Destroy(gameObject);
-        ChangeStateSpriteAndCollider(gameObject, false);
     }
 
     IEnumerator SpawnSingleExplosion(GameObject prefab, Vector3 position, float scale, float delay)
     {
-        //Debug.Log($"Создаю взрыв {prefab.name} в {position} через {delay} сек.");
         yield return new WaitForSeconds(delay);
         GameObject explosion = Instantiate(prefab, position, Quaternion.identity);
         explosion.transform.localScale = new Vector3(scale, scale, 1f);
-        //Debug.Log($"Взрыв создан: {explosion.name}, активен: {explosion.activeSelf}, scale: {explosion.transform.localScale}");
     }
 
-    void ChangeStateSpriteAndCollider(GameObject obj, bool state)
-    {
-        if (obj == null) return;
-
-        SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
-        if (sr != null) sr.enabled = state;
-
-        Collider2D col = obj.GetComponent<Collider2D>();
-        if (col != null) col.enabled = state;
-    }
     void ShowRestartPanel()
     {
-        if(restartPanel != null)
-        {
-            restartPanel.SetActive(true);
-        }
+        if (GameManager.Instance != null && GameManager.Instance.restartPanel != null)
+            GameManager.Instance.restartPanel.SetActive(true);
     }
 
     public void ResetExploded()

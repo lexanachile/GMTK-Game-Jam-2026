@@ -4,23 +4,13 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
-    [Header("Объекты")]
+    [Header("Объекты (перетащите корневые)")]
     public GameObject bike;
     public GameObject cargo;
-
-    [Header("Компоненты (можно с дочерних объектов)")]
-    public SpriteRenderer bikeSprite;
-    public Collider2D bikeCollider;
-    public SpriteRenderer cargoSprite;
-    public Collider2D cargoCollider;
-    public CargoExplosion cargoExplosion;
-    public  StandartExplosion bikeExplosion;
 
     [Header("Стартовые позиции")]
     public Vector3 bikeStartPos;
     public Vector3 cargoStartPos;
-
-    [Header("Стартовые повороты")]
     public Quaternion bikeStartRot = Quaternion.identity;
     public Quaternion cargoStartRot = Quaternion.identity;
 
@@ -28,69 +18,121 @@ public class GameManager : MonoBehaviour
     public GameObject playButton;
     public GameObject restartPanel;
 
+    // Автоматически найденные компоненты
+    private SpriteRenderer bikeSprite;
+    private Collider2D bikeCollider;
+    private BikeExplosion bikeExplosion;
+    private MotorcycleController bikeController;
+    private SpriteRenderer cargoSprite;
+    private Collider2D cargoCollider;
+    private CargoExplosion cargoExplosion;
+    private CargoController cargoController;
+
     void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        Instance = this;
+        CacheComponents();
     }
 
-    /// Запуск игры (по кнопке "Играть")
+    /// <summary>
+    /// Ищет все нужные компоненты на корневых объектах и их детях
+    /// </summary>
+    void CacheComponents()
+    {
+        if (bike != null)
+        {
+            bikeSprite = bike.GetComponentInChildren<SpriteRenderer>();
+            bikeCollider = bike.GetComponentInChildren<Collider2D>();
+            bikeExplosion = bike.GetComponentInChildren<BikeExplosion>();
+            bikeController = bike.GetComponentInChildren<MotorcycleController>();
+        }
+        if (cargo != null)
+        {
+            cargoSprite = cargo.GetComponentInChildren<SpriteRenderer>();
+            cargoCollider = cargo.GetComponentInChildren<Collider2D>();
+            cargoExplosion = cargo.GetComponentInChildren<CargoExplosion>();
+            cargoController = cargo.GetComponentInChildren<CargoController>();
+        }
+    }
+
+    /// <summary>
+    /// Запуск / перезапуск уровня
+    /// </summary>
     public void StartGame()
     {
-        // Возвращаем на стартовые позиции
+        // Позиции и повороты
         SetTransform(bike, bikeStartPos, bikeStartRot);
         SetTransform(cargo, cargoStartPos, cargoStartRot);
-        
-        // Сбрасываем физику
-        ResetRigidbody(bike);
-        ResetRigidbody(cargo);
-        
-        cargoExplosion.ResetExploded();
-        bikeExplosion.ResetExploded();
-        // Включаем спрайты и коллайдеры
-        EnableVisuals(true);
 
-        // Включаем сами объекты (если были выключены)
+        // Физика
+        //ResetRigidbody(bike);
+        //ResetRigidbody(cargo);
+
+        // Сброс флагов взрывов
+        if (bikeExplosion) bikeExplosion.ResetExploded();
+        if (cargoExplosion) cargoExplosion.ResetExploded();
+
+        // Включаем визуал, коллизии и управление
+        EnableBike(true);
+        EnableCargo(true);
+
+        // Объекты активны
         if (bike) bike.SetActive(true);
         if (cargo) cargo.SetActive(true);
 
-        // Управление UI
+        // UI
         if (playButton) playButton.SetActive(false);
         if (restartPanel) restartPanel.SetActive(false);
     }
 
-    /// Рестарт (вызывается по нажатию R из UI)
-    public void RestartLevel()
+    /// <summary>
+    /// Рестарт (вызывается из UI, например, по клавише R)
+    /// </summary>
+    public void RestartLevel() => StartGame();
+
+    /// <summary>
+    /// Отключает спрайты, коллайдеры и управление (используется при взрыве)
+    /// </summary>
+    public void DisableBike() => EnableBike(false);
+    public void DisableCargo() => EnableCargo(false);
+
+    /// <summary>
+    /// Включает/отключает визуал, коллизии и контроллер мотоцикла
+    /// </summary>
+    private void EnableBike(bool enable)
     {
-        StartGame();
+        if (bikeSprite) bikeSprite.enabled = enable;
+        if (bikeCollider) bikeCollider.enabled = enable;
+        if (bikeController) bikeController.enabled = enable;
+
+        // Физика
+        ResetRigidbody(bike);
+    }
+    private void EnableCargo(bool enable)
+    {
+        ResetRigidbody(cargo);
+
+        if (cargoSprite) cargoSprite.enabled = enable;
+        if (cargoCollider) cargoCollider.enabled = enable;
+        if (cargoController) cargoController.enabled = enable;
+    }
+    public void StopBike()
+    {
+        if (bikeController) bikeController.enabled = false;
     }
 
-    /// Отключение визуала и коллизий при взрыве
-    public void DisableVisuals()
-    {
-        EnableVisuals(false);
-    }
-
-    private void EnableVisuals(bool state)
-    {
-        if (bikeSprite) bikeSprite.enabled = state;
-        if (bikeCollider) bikeCollider.enabled = state;
-        if (cargoSprite) cargoSprite.enabled = state;
-        if (cargoCollider) cargoCollider.enabled = state;
-    }
-
+    // --- Вспомогательные методы ---
     private void SetTransform(GameObject obj, Vector3 pos, Quaternion rot)
     {
         if (obj == null) return;
-        obj.transform.position = pos;
-        obj.transform.rotation = rot;
+        obj.transform.SetPositionAndRotation(pos, rot);
     }
 
     private void ResetRigidbody(GameObject obj)
     {
         if (obj == null) return;
         Rigidbody2D rb = obj.GetComponent<Rigidbody2D>();
-        if (rb != null)
+        if (rb)
         {
             rb.linearVelocity = Vector2.zero;
             rb.angularVelocity = 0f;

@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class StandartExplosion : MonoBehaviour
+public class BikeExplosion : MonoBehaviour
 {
     [Header("Взрывы")]
     public GameObject[] explosionPrefabs;
@@ -14,12 +14,6 @@ public class StandartExplosion : MonoBehaviour
     public float minDelay = 0f;
     public float maxDelay = 1f;
 
-    [Header("Объект, который будет скрыт (спрайт и коллайдер)")]
-    public GameObject targetObject;   // если не указан, используется gameObject
-
-    [Header("UI")]
-    public GameObject restartPanel;
-
     private bool exploded = false;
 
     private void OnTriggerEnter2D(Collider2D other) => TriggerExplosions();
@@ -30,16 +24,15 @@ public class StandartExplosion : MonoBehaviour
         if (exploded) return;
         exploded = true;
 
-        // Определяем, что скрывать
-        GameObject objToHide = targetObject != null ? targetObject : gameObject;
+        // Отключаем визуал, коллизию и управление мотоцикла (и коробки заодно)
+        if (GameManager.Instance != null)
+            GameManager.Instance.DisableBike();
 
-        // Скрываем спрайт и коллайдер сразу, чтобы объект "исчез"
-        ChangeStateSpriteAndCollider(objToHide, false);
-
-        StartCoroutine(SpawnExplosionsParallel(objToHide));
+        // Запускаем взрывы и потом покажем меню
+        StartCoroutine(SpawnExplosionsSequence());
     }
 
-    IEnumerator SpawnExplosionsParallel(GameObject objToHide)
+    IEnumerator SpawnExplosionsSequence()
     {
         int count = Random.Range(minExplosions, maxExplosions + 1);
         if (explosionPrefabs == null || explosionPrefabs.Length == 0)
@@ -74,20 +67,11 @@ public class StandartExplosion : MonoBehaviour
         explosion.transform.localScale = new Vector3(scale, scale, 1f);
     }
 
-    void ChangeStateSpriteAndCollider(GameObject obj, bool state)
-    {
-        if (obj == null) return;
-        SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
-        if (sr != null) sr.enabled = state;
-
-        Collider2D col = obj.GetComponent<Collider2D>();
-        if (col != null) col.enabled = state;
-    }
-
     void ShowRestartPanel()
     {
-        if (restartPanel != null)
-            restartPanel.SetActive(true);
+        // Используем панель из GameManager, если она есть
+        if (GameManager.Instance != null && GameManager.Instance.restartPanel != null)
+            GameManager.Instance.restartPanel.SetActive(true);
     }
 
     public void ResetExploded()
