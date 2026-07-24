@@ -70,6 +70,27 @@ public class SecondOrderDynamics
         _initialized = true;
     }
 
+    /// <summary>
+    /// Pull internal state down when external physics blocks motion (e.g. wall slide),
+    /// so the next frame does not immediately re-inject impossible speed.
+    /// </summary>
+    public void PullToward(float value, float velocityScale = 0.25f)
+    {
+        if (!_initialized)
+        {
+            Reset(value);
+            return;
+        }
+
+        bool sameDirOrStop = _y * value >= 0f || Mathf.Abs(value) < 0.0001f;
+        if (sameDirOrStop && Mathf.Abs(value) < Mathf.Abs(_y))
+        {
+            _y = value;
+            _xp = value;
+            _yd *= velocityScale;
+        }
+    }
+
     public float Update(float target, float dt)
     {
         if (!_initialized)

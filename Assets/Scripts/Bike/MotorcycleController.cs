@@ -117,6 +117,16 @@ public class MotorcycleController : MonoBehaviour
     [Tooltip("Ширина следа дрифта.")]
     [SerializeField] private float driftTrailWidth = 0.1f;
 
+    [Header("Wall Collision")]
+    [Tooltip("Слои стен/препятствий для slide-cast. Пусто = все слои, с которыми сталкивается Rigidbody.")]
+    [SerializeField] private LayerMask wallMask = ~0;
+    [Tooltip("Запас при cast, чтобы не застревать в стене.")]
+    [SerializeField] private float wallSkin = 0.08f;
+    [Tooltip("Итерации slide вдоль углов.")]
+    [SerializeField] private int wallSlideIterations = 3;
+    [Tooltip("Масса байка. Высокая = верёвка/груз почти не тянут назад (0 = не трогать Rigidbody).")]
+    [SerializeField] private float bikeMass = 80f;
+
     private PlayerControls controls;
     private float inputX;
     private float inputY;
@@ -124,6 +134,10 @@ public class MotorcycleController : MonoBehaviour
     private float currentAngularVelocity;
     private TrailRenderer leftTrail;
     private TrailRenderer rightTrail;
+
+    private ContactFilter2D wallFilter;
+    private readonly RaycastHit2D[] castHits = new RaycastHit2D[8];
+    private PhysicsMaterial2D zeroFrictionMaterial;
 
     private Vector2 Forward => (Vector2)transform.up;
     private Vector2 Right => (Vector2)transform.right;
@@ -163,7 +177,10 @@ public class MotorcycleController : MonoBehaviour
     {
         controls = new PlayerControls();
 
-        rb.bodyType = RigidbodyType2D.Kinematic;
+        // Lean rotates `visual`; colliders must stay on a non-leaning body or walls dig in.
+        DetachCollidersFromLeanVisual();
+        ConfigureRigidbody();
+        SetupWallFilter();
 
         forwardDynamics.Reset(0f);
         forwardDynamics.maxVelocity = ScaledMaxSpeed * 8f;
@@ -172,6 +189,116 @@ public class MotorcycleController : MonoBehaviour
         currentAngularVelocity = 0f;
 
         SetupDriftTrails();
+    }
+
+    /// <summary>
+    /// Move solid colliders off the lean visual onto a fixed BodyCollision child
+    /// so visual lean does not tilt the physics shape.
+    /// </summary>
+    private void DetachCollidersFromLeanVisual()
+    {
+        if (visual == null)
+            return;
+
+        Collider2D[] visualColliders = visual.GetComponents<Collider2D>();
+        if (visualColliders.Length == 0)
+            return;
+
+        Transform body = transform.Find("BodyCollision");
+        if (body == null)
+        {
+            var bodyGo = new GameObject("BodyCollision");
+            body = bodyGo.transform;
+            body.SetParent(transform, false);
+            body.localPosition = visual.localPosition;
+            body.localRotation = Quaternion.identity;
+            body.localScale = visual.localScale;
+            bodyGo.layer = gameObject.layer;
+        }
+        else if (body.GetComponent<Collider2D>() != null)
+        {
+            // Already detached (domain reload off) — just strip lean colliders
+            for (int i = 0; i < visualColliders.Length; i++)
+                Destroy(visualColliders[i]);
+            return;
+        }
+
+        for (int i = 0; i < visualColliders.Length; i++)
+        {
+            Collider2D src = visualColliders[i];
+            if (src is PolygonCollider2D poly)
+            {
+                var dst = body.gameObject.AddComponent<PolygonCollider2D>();
+                dst.pathCount = poly.pathCount;
+                for (int p = 0; p < poly.pathCount; p++)
+                    dst.SetPath(p, poly.GetPath(p));
+                dst.offset = poly.offset;
+                dst.isTrigger = poly.isTrigger;
+                dst.sharedMaterial = poly.sharedMaterial;
+                Destroy(poly);
+            }
+            else if (src is BoxCollider2D box)
+            {
+                var dst = body.gameObject.AddComponent<BoxCollider2D>();
+                dst.size = box.size;
+                dst.offset = box.offset;
+                dst.isTrigger = box.isTrigger;
+                dst.sharedMaterial = box.sharedMaterial;
+                dst.edgeRadius = box.edgeRadius;
+                Destroy(box);
+            }
+            else if (src is CircleCollider2D circle)
+            {
+                var dst = body.gameObject.AddComponent<CircleCollider2D>();
+                dst.radius = circle.radius;
+                dst.offset = circle.offset;
+                dst.isTrigger = circle.isTrigger;
+                dst.sharedMaterial = circle.sharedMaterial;
+                Destroy(circle);
+            }
+            else if (src is CapsuleCollider2D capsule)
+            {
+                var dst = body.gameObject.AddComponent<CapsuleCollider2D>();
+                dst.size = capsule.size;
+                dst.offset = capsule.offset;
+                dst.direction = capsule.direction;
+                dst.isTrigger = capsule.isTrigger;
+                dst.sharedMaterial = capsule.sharedMaterial;
+                Destroy(capsule);
+            }
+        }
+    }
+
+    private void ConfigureRigidbody()
+    {
+        rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.gravityScale = 0f;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+        rb.constraints = RigidbodyConstraints2D.None;
+
+        if (bikeMass > 0f)
+            rb.mass = bikeMass;
+
+        zeroFrictionMaterial = new PhysicsMaterial2D("BikeZeroFriction")
+        {
+            friction = 0f,
+            bounciness = 0f
+        };
+        rb.sharedMaterial = zeroFrictionMaterial;
+
+        foreach (var col in GetComponentsInChildren<Collider2D>())
+            col.sharedMaterial = zeroFrictionMaterial;
+    }
+
+    private void SetupWallFilter()
+    {
+        wallFilter = new ContactFilter2D
+        {
+            useTriggers = false,
+            useLayerMask = true
+        };
+        wallFilter.SetLayerMask(wallMask);
     }
 
     private void SetupDriftTrails()
@@ -213,6 +340,8 @@ public class MotorcycleController : MonoBehaviour
     private void OnDestroy()
     {
         controls?.Dispose();
+        if (zeroFrictionMaterial != null)
+            Destroy(zeroFrictionMaterial);
     }
 
     private void Update()
@@ -228,6 +357,7 @@ public class MotorcycleController : MonoBehaviour
         ApplyArcSteering();
         ApplyGrip();
         ApplyAngularDamping();
+        ApplyWallSlide();
     }
 
     private void ReadInput()
@@ -385,6 +515,83 @@ public class MotorcycleController : MonoBehaviour
             -maxAngularVelocity,
             maxAngularVelocity
         );
+    }
+
+    /// <summary>
+    /// Убирает компоненту velocity, направленную в стену (slide along walls).
+    /// Dynamic RB + Continuous дают базовую коллизию; cast не даёт «вдавливать» скорость в препятствие.
+    /// После hit подтягивает forwardDynamics, иначе SOD на след. кадре снова вдавит скорость в стену.
+    /// </summary>
+    private void ApplyWallSlide()
+    {
+        Vector2 velocityBefore = rb.linearVelocity;
+        Vector2 velocity = velocityBefore;
+        if (velocity.sqrMagnitude < 0.0001f)
+            return;
+
+        float dt = Time.fixedDeltaTime;
+        int iterations = Mathf.Max(1, wallSlideIterations);
+        bool hitWall = false;
+
+        for (int i = 0; i < iterations; i++)
+        {
+            float speed = velocity.magnitude;
+            if (speed < 0.0001f)
+                break;
+
+            Vector2 direction = velocity / speed;
+            float castDistance = speed * dt + wallSkin;
+
+            int hitCount = rb.Cast(direction, wallFilter, castHits, castDistance);
+            if (!TryGetWallHit(hitCount, out RaycastHit2D hit))
+                break;
+
+            hitWall = true;
+            float intoWall = Vector2.Dot(velocity, hit.normal);
+            if (intoWall < 0f)
+                velocity -= hit.normal * intoWall;
+        }
+
+        rb.linearVelocity = velocity;
+
+        if (!hitWall)
+            return;
+
+        float forwardAfter = Vector2.Dot(velocity, Forward);
+        float forwardBefore = Vector2.Dot(velocityBefore, Forward);
+        if (Mathf.Abs(forwardAfter) + 0.01f < Mathf.Abs(forwardBefore))
+            forwardDynamics.PullToward(forwardAfter);
+    }
+
+    /// <summary>
+    /// Берёт ближайший hit о стену. Игнорирует Dynamic-тела (груз и т.п.),
+    /// чтобы slide работал только по Static/Kinematic геометрии.
+    /// </summary>
+    private bool TryGetWallHit(int hitCount, out RaycastHit2D best)
+    {
+        best = default;
+        float bestDist = float.MaxValue;
+        bool found = false;
+
+        for (int h = 0; h < hitCount; h++)
+        {
+            RaycastHit2D hit = castHits[h];
+            if (hit.collider == null)
+                continue;
+
+            Rigidbody2D otherRb = hit.rigidbody;
+            if (otherRb != null && otherRb.bodyType == RigidbodyType2D.Dynamic)
+                continue;
+
+            if (hit.distance < bestDist)
+            {
+                bestDist = hit.distance;
+                best = hit;
+                found = true;
+            }
+        }
+
+        return found;
     }
 
     private void UpdateVisual()

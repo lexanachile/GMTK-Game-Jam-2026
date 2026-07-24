@@ -279,7 +279,7 @@ GameObject:
   - component: {fileID: 93312856}
   - component: {fileID: 93312855}
   - component: {fileID: 93312857}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: PlayerMarker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -368,7 +368,7 @@ GameObject:
   - component: {fileID: 140826465}
   - component: {fileID: 140826464}
   - component: {fileID: 140826463}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: Canvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -632,6 +632,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 686262264}
+  - {fileID: 777299160}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!50 &352561937
@@ -646,7 +647,7 @@ Rigidbody2D:
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
-  m_Mass: 2
+  m_Mass: 80
   m_LinearDamping: 0
   m_AngularDamping: 0
   m_GravityScale: 0
@@ -674,7 +675,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MotorcycleController
   rb: {fileID: 352561937}
-  visual: {fileID: 0}
+  visual: {fileID: 686262264}
   worldScale: 1
   maxSpeed: 180
   maxReverseSpeed: 15
@@ -852,6 +853,12 @@ MonoBehaviour:
   driftTrailThreshold: 3
   driftTrailColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.5}
   driftTrailWidth: 0.1
+  wallMask:
+    serializedVersion: 2
+    m_Bits: 65
+  wallSkin: 0.08
+  wallSlideIterations: 3
+  bikeMass: 80
 --- !u!1001 &460077443
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1278,8 +1285,7 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 777299160}
+  m_Children: []
   m_Father: {fileID: 352561935}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &686262265
@@ -1423,7 +1429,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 686262264}
+  m_Father: {fileID: 352561935}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &790377569
 PrefabInstance:
@@ -1681,7 +1687,7 @@ GameObject:
   - component: {fileID: 1082700901}
   - component: {fileID: 1082700903}
   - component: {fileID: 1082700902}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: MapPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1934,7 +1940,7 @@ GameObject:
   - component: {fileID: 1147022906}
   - component: {fileID: 1147022905}
   - component: {fileID: 1147022907}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: TargetMarker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2473,9 +2479,9 @@ Rigidbody2D:
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
-  m_Mass: 3
-  m_LinearDamping: 0
-  m_AngularDamping: 0
+  m_Mass: 2
+  m_LinearDamping: 0.2
+  m_AngularDamping: 0.5
   m_GravityScale: 0
   m_Material: {fileID: 0}
   m_IncludeLayers:
@@ -2576,7 +2582,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CargoController
   rb: {fileID: 1740712301}
-  bikeTransform: {fileID: 0}
+  bikeTransform: {fileID: 352561935}
+  lassoRope: {fileID: 2065338285}
   forwardFriction: 1.5
   highSpeedFrictionMultiplier: 1.5
   brakeDeceleration: 100
@@ -2623,7 +2630,7 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   brakeSpeedThreshold: 1
-  maxCargoSpeed: 30
+  maxCargoSpeed: 180
   ropeTensionBrakeMultiplier: 2
   ropeTensionDistance: 0
   lateralDamping: 2
@@ -2732,7 +2739,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: -0.44237423, y: -0.08847618}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -2741,8 +2748,8 @@ BoxCollider2D:
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
-  m_AutoTiling: 1
-  m_Size: {x: 1.02, y: 1}
+  m_AutoTiling: 0
+  m_Size: {x: 29.331968, y: 30.373665}
   m_EdgeRadius: 0
 --- !u!1 &1807645866
 GameObject:
@@ -2843,7 +2850,7 @@ GameObject:
   - component: {fileID: 1861767363}
   - component: {fileID: 1861767365}
   - component: {fileID: 1861767364}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: RawImage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3020,27 +3027,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LassoRope
   startPoint: {fileID: 777299160}
   endPoint: {fileID: 1807645867}
-  segmentCount: 12
-  segmentMass: 0.05
-  segmentGravityScale: 1
-  segmentLinearDrag: 4
-  segmentAngularDrag: 2
-  linkMaxDistance: 0
   ropeLengthMultiplier: 1.5
-  ropeColliderRadius: 0.15
+  cargoMaxDistance: 0
+  stretchForceBase: 400
+  stretchExponent: 2
+  positionCorrection: 0.7
+  maxStretchMultiplier: 1.1
   ropeCollisionMask:
     serializedVersion: 2
-    m_Bits: 192
-  ropeIgnoreMask:
-    serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 65
+  wrapSkin: 0.5
+  maxWrapPoints: 12
+  wrapSolveIterations: 3
+  segmentCount: 16
+  verletIterations: 3
+  verletDamping: 0.98
+  verletGravity: 3
+  verletCollisionRadius: 0.15
+  verletWallCollision: 1
+  adaptiveSegmentReduction: 0.4
+  skipVerletWhenTaut: 1
+  lodCollision: 1
+  lodDistance: 30
+  visualizeTension: 1
+  slackColor: {r: 0.45, g: 0.25, b: 0.08, a: 1}
+  tautColor: {r: 0.8, g: 0.3, b: 0.1, a: 1}
+  overstretchColor: {r: 1, g: 0.2, b: 0.1, a: 1}
   sagForce: 2
-  swingDamping: 0.95
-  cargoMaxDistance: 0
-  cargoJointDelay: 0.5
-  maxStretchMultiplier: 1.5
-  stretchForceBase: 150
-  stretchExponent: 2.5
   ropeWidth: 0.8
   textureTiling: 4
   wobbleAmount: 0.005
