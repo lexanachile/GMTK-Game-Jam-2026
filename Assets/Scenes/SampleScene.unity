@@ -185,12 +185,12 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -4571828015118065507, guid: 9d1aa56a9aa8d67eba94d89e09bdb5b0, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 9d1aa56a9aa8d67eba94d89e09bdb5b0, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 4.98, y: 2.81}
+  m_Size: {x: 1024, y: 1024}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -562,34 +562,34 @@ LineRenderer:
       m_RotationOrder: 4
     colorGradient:
       serializedVersion: 2
-      key0: {r: 1, g: 1, b: 1, a: 1}
-      key1: {r: 1, g: 1, b: 1, a: 1}
-      key2: {r: 0, g: 0, b: 0, a: 0}
+      key0: {r: 0.5754717, g: 0.29045033, b: 0.18729976, a: 0.9647059}
+      key1: {r: 0.59607846, g: 0.32033342, b: 0.13333331, a: 1}
+      key2: {r: 0.53333336, g: 0.3464292, b: 0.17301531, a: 1}
       key3: {r: 0, g: 0, b: 0, a: 0}
       key4: {r: 0, g: 0, b: 0, a: 0}
       key5: {r: 0, g: 0, b: 0, a: 0}
       key6: {r: 0, g: 0, b: 0, a: 0}
       key7: {r: 0, g: 0, b: 0, a: 0}
-      ctime0: 0
-      ctime1: 65535
-      ctime2: 0
+      ctime0: 4722
+      ctime1: 33731
+      ctime2: 65439
       ctime3: 0
       ctime4: 0
       ctime5: 0
       ctime6: 0
       ctime7: 0
-      atime0: 0
-      atime1: 65535
-      atime2: 0
+      atime0: 9059
+      atime1: 31033
+      atime2: 32382
       atime3: 0
       atime4: 0
       atime5: 0
       atime6: 0
       atime7: 0
       m_Mode: 0
-      m_ColorSpace: -1
-      m_NumColorKeys: 2
-      m_NumAlphaKeys: 2
+      m_ColorSpace: 0
+      m_NumColorKeys: 3
+      m_NumAlphaKeys: 3
     numCornerVertices: 0
     numCapVertices: 0
     alignment: 0
@@ -675,44 +675,64 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MotorcycleController
   rb: {fileID: 352561937}
   visual: {fileID: 0}
-  worldScale: 2
-  maxSpeed: 65
-  maxReverseSpeed: 8
+  worldScale: 1
+  maxSpeed: 200
+  maxReverseSpeed: 10
+  straightLineBoostMultiplier: 1.5
+  straightLineBoostTime: 2
   accelerationCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
-      time: -0.006248474
-      value: 0.79669493
-      inSlope: 1.4001304
-      outSlope: 1.4001304
+      time: -0.0020561218
+      value: 0.3593384
+      inSlope: 0.041096862
+      outSlope: 0.041096862
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0.18652314
-    - serializedVersion: 3
-      time: 0.39911518
-      value: 0.9917272
-      inSlope: -0.18166786
-      outSlope: -0.18166786
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.20384495
       outWeight: 1
     - serializedVersion: 3
-      time: 0.767749
-      value: 0.60236204
-      inSlope: -0.36827156
-      outSlope: -0.36827156
+      time: 0.042344376
+      value: 0.36085358
+      inSlope: 0.06909012
+      outSlope: 0.06909012
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.6892062
+    - serializedVersion: 3
+      time: 0.33611757
+      value: 0.54962313
+      inSlope: 0.3
+      outSlope: 0.3
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0.8555803
+      outWeight: 0
     - serializedVersion: 3
-      time: 1
-      value: 0.1
-      inSlope: -1
-      outSlope: -1
+      time: 0.7950226
+      value: 0.6078636
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.94270325
+      value: 0.5397644
+      inSlope: -2
+      outSlope: -2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.0028071
+      value: 0.46583617
+      inSlope: -0.8
+      outSlope: -0.8
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
@@ -721,9 +741,9 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   forwardDynamics:
-    frequency: 4.5
-    damping: 0.55
-    initialResponse: 0.9
+    frequency: 1.8
+    damping: 0.8
+    initialResponse: 0.2
     maxVelocity: 200
   brakeDeceleration: 65
   brakeCurve:
@@ -731,16 +751,25 @@ MonoBehaviour:
     m_Curve:
     - serializedVersion: 3
       time: 0
-      value: 0.5
+      value: 0.6
       inSlope: 0
-      outSlope: 0
+      outSlope: 1
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 0.5
-      value: 1
+      time: 0.3
+      value: 0.9
+      inSlope: 0.5
+      outSlope: 0.5
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.7
+      value: 1.1
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -749,7 +778,7 @@ MonoBehaviour:
       outWeight: 0
     - serializedVersion: 3
       time: 1
-      value: 1.2
+      value: 1.3
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -764,59 +793,67 @@ MonoBehaviour:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
-      time: -0.008552551
-      value: 0.39244384
-      inSlope: 7.9471664
-      outSlope: 7.9471664
+      time: 0
+      value: 0.3
+      inSlope: 2
+      outSlope: 2
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0.10584316
+      outWeight: 0
     - serializedVersion: 3
-      time: 0.20855683
-      value: 0.99455357
-      inSlope: 0.17182894
-      outSlope: 0.17182894
+      time: 0.25
+      value: 1
+      inSlope: 0
+      outSlope: 0
       tangentMode: 0
       weightedMode: 0
-      inWeight: 1
-      outWeight: 0.88505626
+      inWeight: 0
+      outWeight: 0
     - serializedVersion: 3
-      time: 0.51492614
-      value: 0.928064
+      time: 0.6
+      value: 1
+      inSlope: -0.1
+      outSlope: -0.1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0.7
       inSlope: -0.3
       outSlope: -0.3
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
       outWeight: 0
-    - serializedVersion: 3
-      time: 0.99935913
-      value: 0.69244385
-      inSlope: -0.72751075
-      outSlope: -0.72751075
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.22265162
-      outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  steeringSmoothSpeed: 14
-  lowSpeedGrip: 15
-  highSpeedGrip: 3
-  driftGripMultiplier: 0.25
-  driftSpeedThreshold: 0.4
-  coastFriction: 3.5
-  maxAngularVelocity: 350
-  reverseDelay: 0.4
+  steeringSmoothSpeed: 10
+  lowSpeedGrip: 18
+  highSpeedGrip: 4
+  driftGripMultiplier: 0.35
+  driftSpeedThreshold: 0.5
+  lateralDynamics:
+    frequency: 1.8
+    damping: 0.8
+    initialResponse: 0.2
+    maxVelocity: 200
+  coastFriction: 70
+  maxAngularVelocity: 250
+  reverseDelay: 0.3
   visualLeanMax: 25
   leanSensitivity: 2.5
   leanDynamics:
-    frequency: 3.5
-    damping: 0.65
-    initialResponse: 0.5
+    frequency: 2.5
+    damping: 0.8
+    initialResponse: 0.3
     maxVelocity: 200
+  driftTrailThreshold: 3
+  driftTrailColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.5}
+  driftTrailWidth: 0.1
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -2162,12 +2199,12 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 1
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -5177388603050735206, guid: 8884154dfe85442a3a3578be807dbcdf, type: 3}
-  m_Color: {r: 0.6980392, g: 0.1333333, b: 0.1333333, a: 1}
+  m_Sprite: {fileID: 21300000, guid: f7ae89e64b1352cb285b63a1f4e4e7fa, type: 3}
+  m_Color: {r: 0.63529414, g: 0.09411765, b: 0.15294118, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 1, y: 1}
+  m_Size: {x: 32, y: 32}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -2182,7 +2219,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 10, y: -50, z: 0}
-  m_LocalScale: {x: 10, y: 10, z: 2.5645}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1807645867}
@@ -2241,10 +2278,10 @@ BoxCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
-    border: {x: 0.25, y: 0.25, z: 0.25, w: 0.25}
+    border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 1, y: 1}
-    newSize: {x: 1, y: 1}
+    oldSize: {x: 32, y: 32}
+    newSize: {x: 32, y: 32}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
@@ -2276,7 +2313,7 @@ Transform:
   m_GameObject: {fileID: 1807645866}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.54, z: 0}
+  m_LocalPosition: {x: 0, y: 15.92, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2548,12 +2585,12 @@ MonoBehaviour:
   maxStretchMultiplier: 1.5
   stretchForceBase: 150
   stretchExponent: 2.5
-  ropeWidth: 0.3
+  ropeWidth: 0.8
   textureTiling: 4
   wobbleAmount: 0.005
   wobbleSpeed: 2
   smoothSubdivisions: 3
-  ropeColor: {r: 0.45, g: 0.25, b: 0.08, a: 1}
+  ropeColor: {r: 0.46226418, g: 0.26443622, b: 0.09376113, a: 1}
   cargoJoint: {fileID: 1740712300}
 --- !u!1001 &5278096075837529813
 PrefabInstance:
@@ -2563,6 +2600,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 819080799675497428, guid: bdd69da5eacd5ff4686a54b08457b841, type: 3}
+      propertyPath: m_AutoTiling
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5595075288540813123, guid: bdd69da5eacd5ff4686a54b08457b841, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 5595075288540813123, guid: bdd69da5eacd5ff4686a54b08457b841, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 5
+      objectReference: {fileID: 0}
     - target: {fileID: 5595075288540813123, guid: bdd69da5eacd5ff4686a54b08457b841, type: 3}
       propertyPath: m_LocalPosition.x
       value: 7.6
