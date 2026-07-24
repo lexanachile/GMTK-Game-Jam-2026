@@ -1,0 +1,139 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &153162129994568978
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1012069207364046256}
+  - component: {fileID: -5498276145688174897}
+  - component: {fileID: 3500380821690388190}
+  m_Layer: 0
+  m_Name: CargoExplosionFX1
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1012069207364046256
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 153162129994568978}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!212 &-5498276145688174897
+SpriteRenderer:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 153162129994568978}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_Sprite: {fileID: 4211761467620165101, guid: 5ccb6932cac7998398c755cfec011e22, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 1, y: 1}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_SpriteSortPoint: 0
+--- !u!114 &3500380821690388190
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 153162129994568978}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50acf82776ccd9360a426a6118a166b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CargoExplosionAnimation
+  frames:
+  - {fileID: 4211761467620165101, guid: 5ccb6932cac7998398c755cfec011e22, type: 3}
+  - {fileID: 5155163167032735316, guid: 3c0f704b3f688874fbf0a601c9a072a3, type: 3}
+  - {fileID: 8420994399391746316, guid: ff8bc31a89eed454da58b650bd9df4be, type: 3}
+  - {fileID: 4641925799719628613, guid: ce0d95dc310a0be19815a0fc8b05091a, type: 3}
+  - {fileID: 8701536793483841217, guid: a4c299c4b70e6404799960d1dd9fa67d, type: 3}
+  - {fileID: 1418063362356470954, guid: 604641257031625259af3cc018e47ec8, type: 3}
+  - {fileID: 5768811150274278660, guid: f4f322d77c5a988619fef8b77e53aadc, type: 3}
+  - {fileID: -2295233355542045494, guid: a53be11a32d9c94868f1d60816704fc1, type: 3}
+  - {fileID: 3626186460955925390, guid: 6c3e428446a11382b81a840cca97b3c7, type: 3}
+  - {fileID: 6335081431340241071, guid: e3f9e631d054c23ba9cefe632350eb19, type: 3}
+  - {fileID: 8120449960788202493, guid: 3f46d21bb33d192b1a122c2ff86a3b0f, type: 3}
+  - {fileID: 518924280655045077, guid: 69e436a2ae8475618acab75f65be1989, type: 3}
+  - {fileID: -5982941940075545493, guid: c2116b8a8cc0a040d8efc3c278b60eb3, type: 3}
+  - {fileID: 1204236988781962780, guid: 6a227c32a560ff77eb258fcb57aac748, type: 3}
+  - {fileID: 6185800538022621663, guid: e4a74be941276f116bbb1ef6d3b9fae0, type: 3}
+  - {fileID: 4376101208287188695, guid: ca6f4f3341440319f816e63fcaa7a618, type: 3}
+  - {fileID: -1835945327713712400, guid: bbdbfb51cfb4cb60db03e5680c583345, type: 3}
+  - {fileID: 4065346296377691777, guid: 898b98cbe57ee885aafe22f2b8277f7e, type: 3}
+  - {fileID: -8198021366112376811, guid: 59b5b46151af0d93ab913b10d205c8d5, type: 3}
+  - {fileID: 7628680412976252602, guid: aff3751179f69efa99dce063dcefc390, type: 3}
+  - {fileID: -3606060688613102062, guid: d0f70ffa54d73e589b2c8fcdc795ce94, type: 3}
+  - {fileID: -9070497157154751858, guid: b5f48c562ff1f5bfaa3eca1ea5160aac, type: 3}
+  - {fileID: 810765415443863632, guid: 2cd553de91f669ee29071a86d2662c1a, type: 3}
+  - {fileID: -5853695722138866055, guid: a94ee56efe1bdebb0a169a8d69788ea6, type: 3}
+  - {fileID: 1547297335961558348, guid: 564c38b7330673da490b00e35345af01, type: 3}
+  - {fileID: -4470450348104647421, guid: 3aa1f357fcadf1368a446a85538ef3a9, type: 3}
+  - {fileID: 945461754072188580, guid: 3d31857155a7c0a88bee7e0e19cccf58, type: 3}
+  - {fileID: -5043564581096052782, guid: 6719de25ca79adbb18e3594664eee670, type: 3}
+  - {fileID: -6151078167600613210, guid: cf9a639318e3e3651b7669b9b96bafbe, type: 3}
+  - {fileID: -8724751391364975283, guid: 15b9f07670b6260c59137e8ec7c0796d, type: 3}
+  - {fileID: 8015198979287128674, guid: 6da2d42a4b6b669388c2f74afedb9478, type: 3}
+  frameTime: 0.05
