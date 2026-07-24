@@ -14,11 +14,11 @@ public class MapInput : MonoBehaviour
 
         if (Keyboard.current.tabKey.wasPressedThisFrame)
         {
-            if (Keyboard.current.wKey.isPressed ||
+            /*if (Keyboard.current.wKey.isPressed ||
                 Keyboard.current.aKey.isPressed ||
                 Keyboard.current.sKey.isPressed ||
                 Keyboard.current.dKey.isPressed)
-                return;
+                return;*/
 
             mapPanel.SetActive(!mapPanel.activeSelf);
         }
