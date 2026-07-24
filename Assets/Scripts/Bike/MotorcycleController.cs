@@ -1,66 +1,25 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// МОТОЦИКЛ КИНЕМАТИЧЕСКИЙ — физика верёвки и груза НЕ влияет на мотоцикл.
-// Мотоцикл тянет груз за собой через DistanceJoint2D, но груз не тянет мотоцикл назад.
-// Все параметры движения работают одинаково с грузом и без него.
-
 [RequireComponent(typeof(Rigidbody2D))]
 public class MotorcycleController : MonoBehaviour
 {
     [Header("References")]
-    [Tooltip("Rigidbody2D компонента мотоцикла. Используется для управления скоростью и вращением.\n\n" +
-             "ВАЖНО: В Awake автоматически устанавливается bodyType = Kinematic.\n" +
-             "Это значит что физика верёвки и груза НЕ влияет на мотоцикл.\n" +
-             "Мотоцикл двигается через velocity напрямую, игнорируя все внешние силы.")]
     [SerializeField] private Rigidbody2D rb;
-    [Tooltip("Визуальный Transform (дочерний объект мотоцикла). Используется для анимации наклона (lean) без влияния на физику.")]
     [SerializeField] private Transform visual;
 
     [Header("World Scale")]
-    [Tooltip(
-        "Масштаб мира для адаптации параметров движения под размер спрайта.\n\n" +
-        "Если у вас большой спрайт (например, 512x512 пикселей с PPU=100),\n" +
-        "единицы Unity представляют меньшее расстояние, и мотоцикл будет казаться медленным.\n\n" +
-        "Этот параметр умножает ВСЕ параметры скорости и ускорения:\n" +
-        "  - maxSpeed, maxReverseSpeed\n" +
-        "  - brakeDeceleration, coastFriction\n" +
-        "  - steeringSpeed\n\n" +
-        "Как подобрать:\n" +
-        "  1.0 = стандартный масштаб (спрайт ~1 единица Unity)\n" +
-        "  2.0 = спрайт в 2 раза больше (умножает скорости в 2 раза)\n" +
-        "  0.5 = спрайт в 2 раза меньше (делит скорости на 2)\n\n" +
-        "Совет: начните с 1.0 и увеличивайте если мотоцикл слишком медленный,\n" +
-        "или уменьшайте если слишком быстрый. Это проще чем настраивать каждый параметр отдельно.")]
     [SerializeField] private float worldScale = 1f;
 
     [Header("Speed Limits")]
-    [Tooltip(
-        "Максимальная скорость вперёд в единицах/секунду.\n\n" +
-        "Мотоцикл никогда не превысит эту скорость при движении вперёд.\n" +
-        "Рекомендуемый диапазон: 20–40 для 2D top-down игры.\n" +
-        "Увеличьте если мотоцикл кажется медленным, уменьшите если слишком быстрый.")]
     [SerializeField] private float maxSpeed = 30f;
-    [Tooltip(
-        "Максимальная скорость заднего хода в единицах/секунду.\n\n" +
-        "Ограничивает скорость движения назад. Обычно 25–40% от maxSpeed.\n" +
-        "Слишком высокая = сложно контролировать на заднем ходу.")]
     [SerializeField] private float maxReverseSpeed = 10f;
 
     [Header("Acceleration — Target Speed Curve")]
-    [Tooltip(
-        "Кривая целевой скорости при разгоне.\n\n" +
-        "X = нормализованная скорость (0 = стоит, 1 = максимальная скорость)\n" +
-        "Y = множитель целевой скорости (0–1+)\n\n" +
-        "Как читать этот график:\n" +
-        "  Высокий Y при низком X = агрессивный старт, мотоцикл 'рвёт' с места\n" +
-        "  Y ≈ 1 на среднем X = мотоцикл уверенно набирает крейсерскую скорость\n" +
-        "  Y → 0 при X → 1 = плавное замедление разгона у максимальной скорости\n\n" +
-        "Совет: держите Y высоким (0.9–1.0) на первых 70% графика для шустрого разгона,\n" +
-        "и резко опускайте к 0 на последних 10–20% для мягкого выхода на максималку.\n\n" +
-        "Эта кривая работает ВМЕСТЕ с Second Order Dynamics ниже:\n" +
-        "кривая определяет КУДА мотоцикл хочет разогнаться,\n" +
-        "а динамика определяет КАК он туда добирается (плавно/резко/с bounce).")]
+    [Tooltip("X: нормализованная скорость (0-1), Y: множитель целевой скорости.\n" +
+             "Форма кривой определяет мощность на разных скоростях:\n" +
+             "  Высокий Y в начале = мощный старт\n" +
+             "  Падение Y к концу = ограничение максимальной скорости")]
     [SerializeField] private AnimationCurve accelerationCurve = new AnimationCurve(
         new Keyframe(0f, 0.6f, 1f, 0.5f),
         new Keyframe(0.3f, 0.85f, 0.3f, 0.3f),
@@ -70,42 +29,17 @@ public class MotorcycleController : MonoBehaviour
     );
 
     [Header("Acceleration — Second Order Dynamics")]
-    [Tooltip(
-        "Пружинная система (Second Order Dynamics) для плавного разгона.\n\n" +
-        "Основана на концепции из процедурной анимации:\n" +
-        "система отслеживает целевую скорость и плавно следует за ней.\n\n" +
-        "Три параметра:\n" +
-        "  Frequency (f) — скорость отклика. Выше = шустрее разгон.\n" +
-        "  Damping (zeta) — затухание. Меньше 1 = небольшой 'bounce'/overshoot (punchy feel).\n" +
-        "  Initial Response (r) — начальная реакция. 0 = плавный старт, 1 = мгновенный.\n\n" +
-        "Для шустрого мотоцикла: f=3–5, zeta=0.7–0.9, r=0.5–1.0\n" +
-        "Для тяжёлого трактора: f=1–2, zeta=1.2–2.0, r=0\n" +
-        "Для аркадного карта: f=5–8, zeta=0.3–0.5, r=1.5–2.0\n\n" +
-        "ВАЖНО: damping < 0.7 может вызвать рывки/осцилляцию на крейсерской скорости!\n" +
-        "Эта система обходит проблему массы — мотоцикл разгоняется одинаково\n" +
-        "независимо от веса груза на лассо!")]
+    [Tooltip("Плавное ускорение/торможение с инерцией.\n" +
+             "  frequency: скорость реакции (2-4 для плавности)\n" +
+             "  damping: плавность (0.8-1.0 без колебаний)\n" +
+             "  initialResponse: начальная реакция (0.2-0.5 для постепенного старта)")]
     [SerializeField] private SecondOrderDynamics forwardDynamics = new SecondOrderDynamics();
 
     [Header("Braking")]
-    [Tooltip(
-        "Сила торможения (единицы/секунду²).\n\n" +
-        "Определяет как быстро мотоцикл останавливается при нажатии назад на ходу.\n" +
-        "Торможение применяется НАПРЯМУЮ (не через пружину), поэтому мотоцикл\n" +
-        "тормозит уверенно и не feels как 'на льду'.\n\n" +
-        "Рекомендуемый диапазон: 40–80.\n" +
-        "  40–50 = мягкое торможение (как легковая машина)\n" +
-        "  50–70 = уверенное торможение (как спортивный байк)\n" +
-        "  70–90 = резкое торможение (как ABS)")]
     [SerializeField] private float brakeDeceleration = 65f;
-    [Tooltip(
-        "Кривая торможения.\n\n" +
-        "X = нормализованная скорость (0–1)\n" +
-        "Y = множитель силы торможения\n\n" +
-        "Как настроить:\n" +
-        "  Y > 1 при высоком X = сильнее тормозит на высокой скорости (безопаснее)\n" +
-        "  Y ≈ 1 при среднем X = стабильное торможение на крейсерской\n" +
-        "  Y < 1 при низком X = мягче торможение перед остановкой (не клюёт носом)\n\n" +
-        "Совет: поднимите Y на правом конце для уверенного торможения на скорости.")]
+    [Tooltip("X: нормализованная скорость (0-1), Y: множитель силы торможения.\n" +
+             "  Y > 1 = торможение сильнее базового\n" +
+             "  Y < 1 = торможение слабее")]
     [SerializeField] private AnimationCurve brakeCurve = new AnimationCurve(
         new Keyframe(0f, 0.6f, 0f, 1f),
         new Keyframe(0.3f, 0.9f, 0.5f, 0.5f),
@@ -113,180 +47,84 @@ public class MotorcycleController : MonoBehaviour
         new Keyframe(1f, 1.3f, 0f, 0f)
     );
 
-    [Header("Steering")]
-    [Tooltip(
-        "Базовая скорость поворота в градусах/секунду.\n\n" +
-        "Определяет как быстро мотоцикл вращается при полном отклонении руля.\n" +
-        "Рекомендуемый диапазон: 200–400.\n" +
-        "  200–250 = спокойный, стабильный поворот\n" +
-        "  250–350 = отзывчивый, манёвренный\n" +
-        "  350+    = очень резкий, дрифт-ориентированный")]
-    [SerializeField] private float steeringSpeed = 300f;
-    [Tooltip(
-        "Минимальная скорость для включения рулежки (единицы/секунду).\n\n" +
-        "Мотоцикл не может поворачивать, если едет медленнее этого значения.\n" +
-        "Предотвращает вращение на месте (нереалистично для мотоцикла).\n" +
-        "Рекомендуемый диапазон: 2–5.")]
-    [SerializeField] private float minSpeedForSteering = 3f;
-    [Tooltip(
-        "Диапазон плавного включения рулежки выше minSpeedForSteering.\n\n" +
-        "Рулежка плавно нарастает от 0 до полной в этом диапазоне скоростей.\n" +
-        "Больше = более плавное включение. Меньше = более резкое.\n" +
-        "Рекомендуемый диапазон: 2–6.")]
-    [SerializeField] private float steeringBlendRange = 4f;
-    [Tooltip(
-        "Кривая отзывчивости рулежки от скорости.\n\n" +
-        "X = нормализованная скорость (0–1)\n" +
-        "Y = множитель рулежки\n\n" +
-        "Как настроить:\n" +
-        "  Низкий Y при низком X = меньше рулежки на малой скорости (реалистично)\n" +
-        "  Y = 1 при среднем X = полная рулежка на крейсерской (самое манёвренное)\n" +
-        "  Y < 1 при высоком X = меньше рулежки на максимальной (стабильность)\n\n" +
-        "Совет: для дрифт-геймплея поднимите Y на высоких скоростях.")]
+    [Header("Arc Steering")]
+    [Tooltip("Минимальный радиус поворота при полном руле (единицы Unity).\n" +
+             "  3-5  = очень резкий (карт)\n" +
+             "  5-8  = манёвренный (спортбайк)\n" +
+             "  8-12 = плавный (круизер)")]
+    [SerializeField] private float minTurnRadius = 6f;
+
+    [Tooltip("X: нормализованная скорость (0-1), Y: множитель угловой скорости.\n" +
+             "  Y > 1 при среднем X = отзывчивее на крейсерской\n" +
+             "  Y < 1 при высоком X = стабильнее на максимуме")]
     [SerializeField] private AnimationCurve steeringCurve = new AnimationCurve(
-        new Keyframe(0f, 0.25f, 2.5f, 2.5f),
+        new Keyframe(0f, 0.3f, 2f, 2f),
         new Keyframe(0.25f, 1f, 0f, 0f),
-        new Keyframe(0.6f, 0.9f, -0.2f, -0.2f),
-        new Keyframe(1f, 0.55f, -0.5f, -0.5f)
+        new Keyframe(0.6f, 1f, -0.1f, -0.1f),
+        new Keyframe(1f, 0.7f, -0.3f, -0.3f)
     );
+
     [Header("Steering Smoothing")]
-    [Tooltip(
-        "Скорость плавного нарастания угловой скорости.\n\n" +
-        "Определяет как быстро мотоцикл достигает полной угловой скорости.\n" +
-        "  5–8  = мгновенный отклик (может казаться резким)\n" +
-        "  8–12 = отзывчивый, но плавный (рекомендуется)\n" +
-        "  12–20 = очень плавный (как тяжёлый руль)\n\n" +
-        "Это предотвращает 'телепортацию' при резком нажатии руля.")]
+    [Tooltip("Скорость плавного нарастания угловой скорости.\n" +
+             "  5-8  = мгновенный\n" +
+             "  8-12 = отзывчивый, но плавный (рекомендуется)\n" +
+             "  12-20 = очень плавный")]
     [SerializeField] private float steeringSmoothSpeed = 10f;
-    
-    [Header("Steering Assist")]
-    [Tooltip(
-        "Помощь в повороте — добавляет боковую скорость в направлении руля.\n\n" +
-        "Когда игрок рулит, мотоцикл не только вращается, но и 'подруливает' вбок.\n" +
-        "Это делает поворот более естественным — как будто колёса толкают вбок.\n\n" +
-        "  0.0 = нет помощи (только вращение)\n" +
-        "  0.1–0.2 = лёгкая помощь (едва заметная)\n" +
-        "  0.3–0.5 = средняя помощь (ощутимая)\n" +
-        "  0.6+ = сильная помощь (может казаться дрифтом)\n\n" +
-        "Рекомендуемый диапазон: 0.2–0.4 для естественного ощущения.")]
-    [SerializeField, Range(0f, 0.8f)] private float steeringAssist = 0.3f;
-    [Tooltip(
-        "Кривая замедления при повороте.\n\n" +
-        "X = абсолютное значение руля (0 = прямо, 1 = полный руль)\n" +
-        "Y = множитель скорости (1.0 = нет замедления, 0.5 = 50% скорости)\n\n" +
-        "Как настроить:\n" +
-        "  Y = 1.0 при X = 0 (нет замедления прямо)\n" +
-        "  Y = 0.9 при X = 0.3 (лёгкое замедление при малом руле)\n" +
-        "  Y = 0.7 при X = 0.7 (среднее замедление)\n" +
-        "  Y = 0.5 при X = 1.0 (сильное замедление при полном руле)\n\n" +
-        "Совет: опускайте Y на правом конце для более сильного замедления в поворотах.\n" +
-        "Это также предотвращает 'ускорение от поворотов' — баг когда пружина\n" +
-        "даёт overshoot и мотоцикл разгоняется при постоянных поворотах.")]
-    [SerializeField] private AnimationCurve steeringSlowdownCurve = new AnimationCurve(
-        new Keyframe(0f, 1f, 0f, -0.1f),
-        new Keyframe(0.3f, 0.95f, -0.15f, -0.15f),
-        new Keyframe(0.7f, 0.85f, -0.3f, -0.3f),
-        new Keyframe(1f, 0.7f, -0.5f, 0f)
-    );
 
     [Header("Grip & Drift")]
-    [Tooltip(
-        "Боковое сцепление на низкой скорости.\n\n" +
-        "Выше = мотоцикл меньше скользит боком на малых скоростях.\n" +
-        "Очень высокое значение (>20) = ощущение 'рельсов'.\n" +
-        "Рекомендуемый диапазон: 12–20.")]
+    [Tooltip("Сила сцепления на низкой скорости. Выше = меньше заноса.")]
     [SerializeField] private float lowSpeedGrip = 18f;
-    [Tooltip(
-        "Боковое сцепление на высокой скорости.\n\n" +
-        "Ниже = мотоцикл больше заносит на высокой скорости (дрифт).\n" +
-        "Разница между lowSpeedGrip и highSpeedGrip определяет\n" +
-        "насколько сильно меняется поведение мотоцикла с ростом скорости.\n" +
-        "Рекомендуемый диапазон: 3–8.")]
+    [Tooltip("Сила сцепления на высокой скорости. Выше = меньше заноса.")]
     [SerializeField] private float highSpeedGrip = 4f;
-    [Tooltip(
-        "Множитель сцепления при дрифте (рулежка на высокой скорости).\n\n" +
-        "Применяется когда скорость выше driftSpeedThreshold И игрок рулит.\n" +
-        "  0.2–0.3 = сильный занос (как на мокром асфальте)\n" +
-        "  0.3–0.5 = лёгкий дрифт (как на грунтовке)\n" +
-        "  0.5–0.8 = слабый дрифт (почти как на сухом асфальте)")]
+    [Tooltip("Множитель сцепления при дрифте. Ниже = сильнее занос.")]
     [SerializeField] private float driftGripMultiplier = 0.35f;
-    [Tooltip(
-        "Порог нормализованной скорости (0–1) для включения дрифта.\n\n" +
-        "Дрифт активируется когда скорость выше этого порога И игрок рулит.\n" +
-        "  0.4–0.5 = дрифт начинается рано (легко войти в занос)\n" +
-        "  0.6–0.7 = дрифт только на высокой скорости (нужно разогнаться)\n" +
-        "  0.8+    = дрифт только на максимальной (редкий, экстремальный)")]
+    [Tooltip("Порог скорости для начала дрифта (нормализованный 0-1).")]
     [SerializeField] private float driftSpeedThreshold = 0.5f;
+    [Tooltip("SecondOrderDynamics для плавного бокового скольжения.\n" +
+             "  frequency: скорость реакции на занос (3-6)\n" +
+             "  damping: плавность (0.6-0.9 для упругого заноса)\n" +
+             "  initialResponse: начальная реакция (0.5-1.0)")]
+    [SerializeField] private SecondOrderDynamics lateralDynamics = new SecondOrderDynamics();
 
     [Header("Coast & Friction")]
-    [Tooltip(
-        "Сила замедления при отпущенном газе (единицы/секунду²).\n\n" +
-        "Определяет как быстро мотоцикл замедляется когда игрок ничего не нажимает.\n" +
-        "  1–2  = длинный накат (как велосипед на ровной дороге)\n" +
-        "  3–5  = средний накат (как машина с отпущенным газом)\n" +
-        "  6–10 = быстрое замедление (как engine braking на низкой передаче)")]
+    [Tooltip("Сила трения при отпущенном газе. Выше = быстрее замедление.")]
     [SerializeField] private float coastFriction = 3.5f;
 
-    [Header("Angular Damping")]
-    [Tooltip(
-        "Затухание вращения когда НЕ рулим.\n\n" +
-        "Как быстро мотоцикл перестаёт вращаться после отпускания руля.\n" +
-        "Выше = быстрее выравнивается. Ниже = дольше крутится по инерции.\n" +
-        "Рекомендуемый диапазон: 5–12.")]
-    [SerializeField] private float angularDamping = 8f;
-    [Tooltip(
-        "Затухание вращения ВО ВРЕМЯ рулежки.\n\n" +
-        "Ниже = более отзывчивый поворот (мотоцикл не 'сопротивляется' рулежке).\n" +
-        "Выше = более стабильный, но менее отзывчивый.\n" +
-        "Рекомендуемый диапазон: 1–4.")]
-    [SerializeField] private float angularDampingWhileSteering = 2f;
-    [Tooltip(
-        "Максимальная угловая скорость в градусах/секунду.\n\n" +
-        "Предотвращает бесконечное вращение мотоцикла.\n" +
-        "Рекомендуемый диапазон: 300–500.")]
+    [Header("Angular Limits")]
+    [Tooltip("Максимальная угловая скорость (градусы/сек).")]
     [SerializeField] private float maxAngularVelocity = 400f;
 
     [Header("Reverse")]
-    [Tooltip(
-        "Задержка в секундах перед включением заднего хода.\n\n" +
-        "Защищает от случайного включения заднего хода при быстром торможении.\n" +
-        "  0.2–0.3 = короткая (отзывчивый задний ход)\n" +
-        "  0.4–0.6 = средняя (комфортный)\n" +
-        "  0.7+    = длинная (нужно уверенно держать назад)")]
+    [Tooltip("Задержка перед включением заднего хода (сек).")]
     [SerializeField] private float reverseDelay = 0.3f;
 
     [Header("Visual — Lean Animation")]
-    [Tooltip(
-        "Максимальный угол наклона визуала в градусах.\n\n" +
-        "Определяет насколько сильно мотоцикл наклоняется при повороте/дрифте.\n" +
-        "  15–20 = лёгкий наклон (реалистичный)\n" +
-        "  20–30 = заметный наклон (аркадный, выразительный)\n" +
-        "  30+   = экстремальный наклон (стилизированный)")]
+    [Tooltip("Максимальный угол наклона спрайта (градусы).")]
     [SerializeField] private float visualLeanMax = 25f;
-    [Tooltip(
-        "Чувствительность наклона к боковой скорости.\n\n" +
-        "Множитель, определяющий насколько сильно боковая скорость влияет на наклон.\n" +
-        "Выше = больше наклон при том же заносе. Ниже = меньше.\n" +
-        "Рекомендуемый диапазон: 1.5–4.0.")]
+    [Tooltip("Чувствительность наклона к боковой скорости.")]
     [SerializeField] private float leanSensitivity = 2.5f;
-    [Tooltip(
-        "Пружинная система (Second Order Dynamics) для анимации наклона.\n\n" +
-        "Управляет тем, КАК мотоцикл наклоняется:\n" +
-        "  Frequency = скорость наклона\n" +
-        "  Damping < 1 = наклон 'проскакивает' и возвращается (bounce)\n" +
-        "  Initial Response < 0 = anticipation: наклоняется в ПРОТИВОПОЛОЖНУЮ сторону\n" +
-        "                         перед тем как наклониться в поворот (juicy feel!)\n\n" +
-        "Рекомендуемые настройки для сочного наклона:\n" +
-        "  f=3, zeta=0.5, r=-1 (bounce + anticipation)\n" +
-        "  f=4, zeta=0.7, r=0 (быстрый, без bounce)\n" +
-        "  f=2, zeta=0.3, r=-2 (медленный, сильный anticipation)")]
+    [Tooltip("SecondOrderDynamics для плавного наклона спрайта.\n" +
+             "  frequency: скорость наклона (3-5)\n" +
+             "  damping: плавность (0.5-0.8)\n" +
+             "  initialResponse: -1 для упреждения (наклон в противоположную сторону перед поворотом)")]
     [SerializeField] private SecondOrderDynamics leanDynamics = new SecondOrderDynamics();
+
+    [Header("Drift Visual Effects")]
+    [Tooltip("Порог боковой скорости для отрисовки следов дрифта.")]
+    [SerializeField] private float driftTrailThreshold = 3f;
+    [Tooltip("Цвет следов дрифта.")]
+    [SerializeField] private Color driftTrailColor = new Color(0.2f, 0.2f, 0.2f, 0.5f);
+    [Tooltip("Ширина следа дрифта.")]
+    [SerializeField] private float driftTrailWidth = 0.1f;
 
     private PlayerControls controls;
     private float inputX;
     private float inputY;
     private float reverseTimer;
     private float currentAngularVelocity;
+    private float currentLateralSpeed;
+    private TrailRenderer leftTrail;
+    private TrailRenderer rightTrail;
 
     private Vector2 Forward => (Vector2)transform.up;
     private Vector2 Right => (Vector2)transform.right;
@@ -295,16 +133,27 @@ public class MotorcycleController : MonoBehaviour
     private float ScaledMaxReverseSpeed => maxReverseSpeed * worldScale;
     private float ScaledBrakeDeceleration => brakeDeceleration * worldScale;
     private float ScaledCoastFriction => coastFriction * worldScale;
-    private float ScaledSteeringSpeed => steeringSpeed * worldScale;
+    private float ScaledMinTurnRadius => minTurnRadius * worldScale;
 
     public float Speed => rb.linearVelocity.magnitude;
     public float ForwardSpeed => Vector2.Dot(rb.linearVelocity, Forward);
     public float NormalizedSpeed => Mathf.Clamp01(Speed / ScaledMaxSpeed);
     public bool IsDrifting { get; private set; }
+    public float DriftIntensity { get; private set; }
 
     private void Reset()
     {
         rb = GetComponent<Rigidbody2D>();
+        forwardDynamics.frequency = 2.5f;
+        forwardDynamics.damping = 0.9f;
+        forwardDynamics.initialResponse = 0.3f;
+        forwardDynamics.maxVelocity = 200f;
+
+        lateralDynamics.frequency = 4f;
+        lateralDynamics.damping = 0.7f;
+        lateralDynamics.initialResponse = 0.8f;
+        lateralDynamics.maxVelocity = 150f;
+
         leanDynamics.frequency = 3f;
         leanDynamics.damping = 0.5f;
         leanDynamics.initialResponse = -1f;
@@ -319,8 +168,38 @@ public class MotorcycleController : MonoBehaviour
 
         forwardDynamics.Reset(0f);
         forwardDynamics.maxVelocity = ScaledMaxSpeed * 8f;
+        lateralDynamics.Reset(0f);
         leanDynamics.Reset(0f);
         currentAngularVelocity = 0f;
+        currentLateralSpeed = 0f;
+
+        SetupDriftTrails();
+    }
+
+    private void SetupDriftTrails()
+    {
+        var leftTrailObj = new GameObject("LeftDriftTrail");
+        leftTrailObj.transform.SetParent(transform);
+        leftTrailObj.transform.localPosition = new Vector3(-0.3f, -0.5f, 0f);
+        leftTrail = leftTrailObj.AddComponent<TrailRenderer>();
+        ConfigureTrail(leftTrail);
+
+        var rightTrailObj = new GameObject("RightDriftTrail");
+        rightTrailObj.transform.SetParent(transform);
+        rightTrailObj.transform.localPosition = new Vector3(0.3f, -0.5f, 0f);
+        rightTrail = rightTrailObj.AddComponent<TrailRenderer>();
+        ConfigureTrail(rightTrail);
+    }
+
+    private void ConfigureTrail(TrailRenderer trail)
+    {
+        trail.time = 2f;
+        trail.startWidth = driftTrailWidth;
+        trail.endWidth = driftTrailWidth * 0.5f;
+        trail.startColor = driftTrailColor;
+        trail.endColor = new Color(driftTrailColor.r, driftTrailColor.g, driftTrailColor.b, 0f);
+        trail.emitting = false;
+        trail.material = new Material(Shader.Find("Sprites/Default"));
     }
 
     private void OnEnable()
@@ -342,12 +221,13 @@ public class MotorcycleController : MonoBehaviour
     {
         ReadInput();
         UpdateVisual();
+        UpdateDriftTrails();
     }
 
     private void FixedUpdate()
     {
         HandleForwardMovement();
-        ApplySteering();
+        ApplyArcSteering();
         ApplyGrip();
         ApplyAngularDamping();
     }
@@ -371,16 +251,8 @@ public class MotorcycleController : MonoBehaviour
             reverseTimer = 0f;
             float curveValue = accelerationCurve.Evaluate(normalizedSpeed);
             float targetSpeed = ScaledMaxSpeed * curveValue * inputY;
-            
-            float slowdownFactor = steeringSlowdownCurve.Evaluate(Mathf.Abs(inputX));
-            targetSpeed *= slowdownFactor;
-            
+
             newForwardSpeed = forwardDynamics.Update(targetSpeed, Time.fixedDeltaTime);
-            
-            float maxAllowedSpeed = ScaledMaxSpeed * slowdownFactor;
-            if (Mathf.Abs(inputX) > 0.1f)
-                newForwardSpeed = Mathf.Min(newForwardSpeed, maxAllowedSpeed);
-            
             newForwardSpeed = Mathf.Clamp(newForwardSpeed, -ScaledMaxReverseSpeed, ScaledMaxSpeed);
         }
         else if (inputY < 0f)
@@ -390,7 +262,7 @@ public class MotorcycleController : MonoBehaviour
                 float curveValue = brakeCurve.Evaluate(normalizedSpeed);
                 float brakeAmount = ScaledBrakeDeceleration * curveValue * Time.fixedDeltaTime;
                 newForwardSpeed = Mathf.Max(0f, currentForward - brakeAmount);
-                forwardDynamics.Reset(newForwardSpeed);
+                forwardDynamics.Update(newForwardSpeed, Time.fixedDeltaTime);
             }
             else
             {
@@ -404,23 +276,22 @@ public class MotorcycleController : MonoBehaviour
                 else
                 {
                     newForwardSpeed = Mathf.Max(0f, currentForward - ScaledCoastFriction * Time.fixedDeltaTime);
-                    forwardDynamics.Reset(newForwardSpeed);
+                    forwardDynamics.Update(newForwardSpeed, Time.fixedDeltaTime);
                 }
             }
         }
         else
         {
             reverseTimer = 0f;
-            newForwardSpeed = Mathf.Max(0f, currentForward - ScaledCoastFriction * Time.fixedDeltaTime);
-            
-            float slowdownFactor = steeringSlowdownCurve.Evaluate(Mathf.Abs(inputX));
-            newForwardSpeed *= slowdownFactor;
-            
-            forwardDynamics.Reset(newForwardSpeed);
+            float frictionAmount = ScaledCoastFriction * Time.fixedDeltaTime * 0.3f;
+            newForwardSpeed = currentForward > 0f
+                ? Mathf.Max(0f, currentForward - frictionAmount)
+                : Mathf.Min(0f, currentForward + frictionAmount);
+            forwardDynamics.Update(newForwardSpeed, Time.fixedDeltaTime);
         }
 
         rb.linearVelocity = Forward * newForwardSpeed + lateralVel;
-        
+
         float totalSpeed = rb.linearVelocity.magnitude;
         float maxTotalSpeed = ScaledMaxSpeed * 1.1f;
         if (totalSpeed > maxTotalSpeed)
@@ -429,41 +300,37 @@ public class MotorcycleController : MonoBehaviour
         }
     }
 
-    private void ApplySteering()
+    private void ApplyArcSteering()
     {
         float forwardSpeed = Vector2.Dot(rb.linearVelocity, Forward);
         float speed = Mathf.Abs(forwardSpeed);
 
-        if (speed < minSpeedForSteering)
-        {
-            rb.angularVelocity = 0f;
-            currentAngularVelocity = 0f;
-            return;
-        }
-
-        float blendFactor = Mathf.Clamp01((speed - minSpeedForSteering) / steeringBlendRange);
         float normalizedSpeed = Mathf.Clamp01(speed / ScaledMaxSpeed);
         float curveMultiplier = steeringCurve.Evaluate(normalizedSpeed);
 
-        float targetAngularVelocity = -inputX * ScaledSteeringSpeed * curveMultiplier * blendFactor;
+        float targetAngularVelocity = 0f;
 
-        if (forwardSpeed < 0f)
-            targetAngularVelocity *= -1f;
+        if (Mathf.Abs(inputX) > 0.01f)
+        {
+            float effectiveRadius = ScaledMinTurnRadius / Mathf.Abs(inputX);
+
+            float angularVelocityRad = speed / effectiveRadius;
+            targetAngularVelocity = angularVelocityRad * Mathf.Rad2Deg * curveMultiplier;
+
+            if (inputX > 0f)
+                targetAngularVelocity = -targetAngularVelocity;
+
+            if (forwardSpeed < 0f)
+                targetAngularVelocity *= -1f;
+        }
 
         currentAngularVelocity = Mathf.Lerp(
             currentAngularVelocity,
             targetAngularVelocity,
             steeringSmoothSpeed * Time.fixedDeltaTime
         );
-        
+
         rb.angularVelocity = currentAngularVelocity;
-        
-        if (Mathf.Abs(inputX) > 0.1f && speed > minSpeedForSteering)
-        {
-            float assistForce = -inputX * steeringAssist * speed * curveMultiplier * blendFactor;
-            Vector2 sideDirection = Right;
-            rb.linearVelocity += sideDirection * assistForce * Time.fixedDeltaTime;
-        }
     }
 
     private void ApplyGrip()
@@ -474,6 +341,7 @@ public class MotorcycleController : MonoBehaviour
         float forwardSpeed = Vector2.Dot(rb.linearVelocity, Forward);
         Vector2 forwardVelocity = Forward * forwardSpeed;
         Vector2 sideVelocity = rb.linearVelocity - forwardVelocity;
+        float targetLateralSpeed = Vector2.Dot(sideVelocity, Right);
 
         float grip = Mathf.Lerp(lowSpeedGrip, highSpeedGrip, normalizedSpeed);
 
@@ -488,25 +356,20 @@ public class MotorcycleController : MonoBehaviour
             grip *= driftFactor;
         }
 
-        sideVelocity = Vector2.Lerp(sideVelocity, Vector2.zero, grip * Time.fixedDeltaTime);
-        rb.linearVelocity = forwardVelocity + sideVelocity;
+        float targetLateral = 0f;
+        currentLateralSpeed = lateralDynamics.Update(targetLateral, Time.fixedDeltaTime);
+
+        float gripForce = grip * Time.fixedDeltaTime;
+        float dampedLateral = Mathf.Lerp(targetLateralSpeed, currentLateralSpeed, gripForce);
+
+        Vector2 newSideVelocity = Right * dampedLateral;
+        rb.linearVelocity = forwardVelocity + newSideVelocity;
+
+        DriftIntensity = Mathf.Clamp01(Mathf.Abs(dampedLateral) / 5f);
     }
 
     private void ApplyAngularDamping()
     {
-        bool isSteering = Mathf.Abs(inputX) > 0.1f;
-        float dampingRate = isSteering ? angularDampingWhileSteering : angularDamping;
-
-        if (!isSteering && dampingRate > 0f)
-        {
-            rb.angularVelocity = Mathf.Lerp(
-                rb.angularVelocity,
-                0f,
-                dampingRate * Time.fixedDeltaTime
-            );
-            currentAngularVelocity = rb.angularVelocity;
-        }
-
         rb.angularVelocity = Mathf.Clamp(
             rb.angularVelocity,
             -maxAngularVelocity,
@@ -524,5 +387,14 @@ public class MotorcycleController : MonoBehaviour
         float currentLean = leanDynamics.Update(targetLean, Time.deltaTime);
 
         visual.localRotation = Quaternion.Euler(0f, 0f, currentLean);
+    }
+
+    private void UpdateDriftTrails()
+    {
+        float sideVelocity = Mathf.Abs(Vector2.Dot(rb.linearVelocity, Right));
+        bool shouldEmit = sideVelocity > driftTrailThreshold && IsDrifting;
+
+        leftTrail.emitting = shouldEmit;
+        rightTrail.emitting = shouldEmit;
     }
 }

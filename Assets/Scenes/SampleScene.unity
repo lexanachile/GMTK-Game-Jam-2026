@@ -759,9 +759,7 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  steeringSpeed: 330
-  minSpeedForSteering: 2
-  steeringBlendRange: 10
+  minTurnRadius: 6
   steeringCurve:
     serializedVersion: 2
     m_Curve:
@@ -804,55 +802,12 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  steeringSlowdownCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 1
-      inSlope: 0
-      outSlope: -0.2
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 0.3
-      value: 0.92
-      inSlope: -0.3
-      outSlope: -0.3
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 0.7
-      value: 0.7
-      inSlope: -0.6
-      outSlope: -0.6
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 0.5
-      inSlope: -1
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
+  steeringSmoothSpeed: 14
   lowSpeedGrip: 15
   highSpeedGrip: 3
   driftGripMultiplier: 0.25
   driftSpeedThreshold: 0.4
   coastFriction: 3.5
-  angularDamping: 6
-  angularDampingWhileSteering: 1.5
   maxAngularVelocity: 350
   reverseDelay: 0.4
   visualLeanMax: 25
