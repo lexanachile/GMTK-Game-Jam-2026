@@ -682,32 +682,32 @@ MonoBehaviour:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
-      time: 0
-      value: 0.7
-      inSlope: 2
-      outSlope: 2
+      time: -0.006248474
+      value: 0.79669493
+      inSlope: 1.4001304
+      outSlope: 1.4001304
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0
+      outWeight: 0.18652314
     - serializedVersion: 3
-      time: 0.06066209
-      value: 1.0126572
-      inSlope: 0
-      outSlope: 0
+      time: 0.39911518
+      value: 0.9917272
+      inSlope: -0.18166786
+      outSlope: -0.18166786
       tangentMode: 0
       weightedMode: 0
-      inWeight: 0
-      outWeight: 0
+      inWeight: 0.20384495
+      outWeight: 1
     - serializedVersion: 3
-      time: 0.5916626
-      value: 0.81213987
-      inSlope: -0.5
-      outSlope: -0.5
+      time: 0.767749
+      value: 0.60236204
+      inSlope: -0.36827156
+      outSlope: -0.36827156
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0
+      outWeight: 0.8555803
     - serializedVersion: 3
       time: 1
       value: 0.1
@@ -721,9 +721,9 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   forwardDynamics:
-    frequency: 3.5
-    damping: 0.65
-    initialResponse: 0.5
+    frequency: 4.5
+    damping: 0.55
+    initialResponse: 0.9
     maxVelocity: 200
   brakeDeceleration: 65
   brakeCurve:
@@ -759,33 +759,33 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  steeringSpeed: 300
+  steeringSpeed: 330
   minSpeedForSteering: 2
-  steeringBlendRange: 3
+  steeringBlendRange: 10
   steeringCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: -0.008552551
-      value: 0.36116332
-      inSlope: 2
-      outSlope: 2
+      value: 0.39244384
+      inSlope: 7.9471664
+      outSlope: 7.9471664
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0
+      outWeight: 0.10584316
     - serializedVersion: 3
-      time: 0.29583895
-      value: 1.0028561
-      inSlope: 0
-      outSlope: 0
+      time: 0.20855683
+      value: 0.99455357
+      inSlope: 0.17182894
+      outSlope: 0.17182894
       tangentMode: 0
       weightedMode: 0
-      inWeight: 0
-      outWeight: 0
+      inWeight: 1
+      outWeight: 0.88505626
     - serializedVersion: 3
-      time: 0.7083313
-      value: 0.79000247
+      time: 0.51492614
+      value: 0.928064
       inSlope: -0.3
       outSlope: -0.3
       tangentMode: 0
@@ -793,10 +793,52 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 1.0229187
-      value: 0.38095093
-      inSlope: -0.5
-      outSlope: -0.5
+      time: 0.99935913
+      value: 0.69244385
+      inSlope: -0.72751075
+      outSlope: -0.72751075
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.22265162
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  steeringSlowdownCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: -0.2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.3
+      value: 0.92
+      inSlope: -0.3
+      outSlope: -0.3
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.7
+      value: 0.7
+      inSlope: -0.6
+      outSlope: -0.6
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0.5
+      inSlope: -1
+      outSlope: 0
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
@@ -804,11 +846,10 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  steeringSlowdown: 0.4
   lowSpeedGrip: 15
-  highSpeedGrip: 2
-  driftGripMultiplier: 0.4
-  driftSpeedThreshold: 0.6
+  highSpeedGrip: 3
+  driftGripMultiplier: 0.25
+  driftSpeedThreshold: 0.4
   coastFriction: 3.5
   angularDamping: 6
   angularDampingWhileSteering: 1.5
