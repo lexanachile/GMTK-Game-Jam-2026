@@ -22,10 +22,12 @@ public class CargoExplosion : MonoBehaviour
     public float minDelay = 0f;
     public float maxDelay = 1f;
 
+
+    public GameObject restartPanel;
     private bool exploded = false;
 
     // Если нужен и триггер – добавьте:
-    // private void OnTriggerEnter2D(Collider2D other) => TriggerExplosions();
+    private void OnTriggerEnter2D(Collider2D other) => TriggerExplosions();
 
     private void OnCollisionEnter2D(Collision2D collision) => TriggerExplosions();
 
@@ -49,8 +51,9 @@ public class CargoExplosion : MonoBehaviour
         int count = Random.Range(minExplosions, maxExplosions + 1);
         if (explosionPrefabs == null || explosionPrefabs.Length == 0)
         {
-            Debug.LogWarning("Нет префабов взрывов в списке!");
-            Destroy(gameObject);
+            //Debug.LogWarning("Нет префабов взрывов в списке!");
+            //Destroy(gameObject);
+            ChangeStateSpriteAndCollider(gameObject, false);
             yield break;
         }
 
@@ -78,15 +81,40 @@ public class CargoExplosion : MonoBehaviour
 
         // Ждём самую долгую задержку и удаляем бочку
         yield return new WaitForSeconds(maxDelay + 0.1f);
-        Destroy(gameObject);
+        ShowRestartPanel();
+        //Destroy(gameObject);
+        ChangeStateSpriteAndCollider(gameObject, false);
     }
 
     IEnumerator SpawnSingleExplosion(GameObject prefab, Vector3 position, float scale, float delay)
     {
-        Debug.Log($"Создаю взрыв {prefab.name} в {position} через {delay} сек.");
+        //Debug.Log($"Создаю взрыв {prefab.name} в {position} через {delay} сек.");
         yield return new WaitForSeconds(delay);
         GameObject explosion = Instantiate(prefab, position, Quaternion.identity);
         explosion.transform.localScale = new Vector3(scale, scale, 1f);
-         Debug.Log($"Взрыв создан: {explosion.name}, активен: {explosion.activeSelf}, scale: {explosion.transform.localScale}");
+        //Debug.Log($"Взрыв создан: {explosion.name}, активен: {explosion.activeSelf}, scale: {explosion.transform.localScale}");
+    }
+
+    void ChangeStateSpriteAndCollider(GameObject obj, bool state)
+    {
+        if (obj == null) return;
+
+        SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
+        if (sr != null) sr.enabled = state;
+
+        Collider2D col = obj.GetComponent<Collider2D>();
+        if (col != null) col.enabled = state;
+    }
+    void ShowRestartPanel()
+    {
+        if(restartPanel != null)
+        {
+            restartPanel.SetActive(true);
+        }
+    }
+
+    public void ResetExploded()
+    {
+        exploded = false;
     }
 }
