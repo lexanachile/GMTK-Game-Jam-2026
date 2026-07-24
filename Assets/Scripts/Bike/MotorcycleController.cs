@@ -122,7 +122,6 @@ public class MotorcycleController : MonoBehaviour
     private float inputY;
     private float reverseTimer;
     private float currentAngularVelocity;
-    private float currentLateralSpeed;
     private TrailRenderer leftTrail;
     private TrailRenderer rightTrail;
 
@@ -171,7 +170,6 @@ public class MotorcycleController : MonoBehaviour
         lateralDynamics.Reset(0f);
         leanDynamics.Reset(0f);
         currentAngularVelocity = 0f;
-        currentLateralSpeed = 0f;
 
         SetupDriftTrails();
     }
@@ -341,7 +339,7 @@ public class MotorcycleController : MonoBehaviour
         float forwardSpeed = Vector2.Dot(rb.linearVelocity, Forward);
         Vector2 forwardVelocity = Forward * forwardSpeed;
         Vector2 sideVelocity = rb.linearVelocity - forwardVelocity;
-        float targetLateralSpeed = Vector2.Dot(sideVelocity, Right);
+        float currentLateralSpeed = Vector2.Dot(sideVelocity, Right);
 
         float grip = Mathf.Lerp(lowSpeedGrip, highSpeedGrip, normalizedSpeed);
 
@@ -357,13 +355,25 @@ public class MotorcycleController : MonoBehaviour
         }
 
         float targetLateral = 0f;
-        currentLateralSpeed = lateralDynamics.Update(targetLateral, Time.fixedDeltaTime);
+        float smoothedLateral = lateralDynamics.Update(targetLateral, Time.fixedDeltaTime);
 
         float gripForce = grip * Time.fixedDeltaTime;
-        float dampedLateral = Mathf.Lerp(targetLateralSpeed, currentLateralSpeed, gripForce);
+        float dampedLateral = Mathf.Lerp(currentLateralSpeed, smoothedLateral, gripForce);
 
         Vector2 newSideVelocity = Right * dampedLateral;
-        rb.linearVelocity = forwardVelocity + newSideVelocity;
+
+        float totalSpeedBefore = rb.linearVelocity.magnitude;
+        float lateralMagnitude = Mathf.Abs(dampedLateral);
+        float forwardMagnitude = 0f;
+
+        if (totalSpeedBefore > lateralMagnitude)
+        {
+            forwardMagnitude = Mathf.Sqrt(totalSpeedBefore * totalSpeedBefore - lateralMagnitude * lateralMagnitude);
+            forwardMagnitude *= Mathf.Sign(forwardSpeed);
+        }
+
+        Vector2 newForwardVelocity = Forward * forwardMagnitude;
+        rb.linearVelocity = newForwardVelocity + newSideVelocity;
 
         DriftIntensity = Mathf.Clamp01(Mathf.Abs(dampedLateral) / 5f);
     }
