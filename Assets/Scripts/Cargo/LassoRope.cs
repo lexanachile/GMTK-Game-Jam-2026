@@ -26,6 +26,9 @@ public class LassoRope : MonoBehaviour
     [SerializeField] private float cargoMaxDistance = 0f;
 
     [Header("Cargo Pull (one-way — bike is never pulled)")]
+    [Tooltip("Отключить физическую коллизию байк↔коробка. Без этого коробка упирается в байк\n" +
+             "(его масса намного больше) и не может перелететь его по инерции.")]
+    [SerializeField] private bool ignoreBikeCargoCollision = true;
     [Tooltip("How hard cargo is reeled in when over max path length")]
     [SerializeField] private float stretchForceBase = 150f;
     [SerializeField, Range(1f, 4f)] private float stretchExponent = 2.5f;
@@ -312,6 +315,8 @@ public class LassoRope : MonoBehaviour
         prevCargoPos = endPoint.position;
 
         ConfigureCargoBody();
+        if (ignoreBikeCargoCollision)
+            IgnoreBikeCargoCollision();
         RebuildPath();
         InitializeVerlet();
 
@@ -339,6 +344,26 @@ public class LassoRope : MonoBehaviour
         cargoRb.sharedMaterial = cargoZeroFrictionMaterial;
         foreach (var col in cargoRb.GetComponentsInChildren<Collider2D>())
             col.sharedMaterial = cargoZeroFrictionMaterial;
+    }
+
+    /// <summary>
+    /// Байк и коробка не сталкиваются физически: иначе коробка упирается в байк
+    /// (масса байка в десятки раз больше) и не может перелететь его по инерции,
+    /// когда байк тормозит. Перелёт и стоп об верёвку — геймплейная механика.
+    /// </summary>
+    private void IgnoreBikeCargoCollision()
+    {
+        Collider2D[] bikeCols = bikeRb.GetComponentsInChildren<Collider2D>();
+        Collider2D[] cargoCols = cargoRb.GetComponentsInChildren<Collider2D>();
+
+        for (int i = 0; i < bikeCols.Length; i++)
+        {
+            for (int j = 0; j < cargoCols.Length; j++)
+            {
+                if (bikeCols[i] != null && cargoCols[j] != null)
+                    Physics2D.IgnoreCollision(bikeCols[i], cargoCols[j], true);
+            }
+        }
     }
 
     private void OnDestroy()
