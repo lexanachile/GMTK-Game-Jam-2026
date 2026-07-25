@@ -19,6 +19,14 @@ public class GameManager : MonoBehaviour
     public GameObject restartPanel;
     public GameObject gameEndPanel;
 
+    [Header("Monster spawn distances")]
+    public float innerSpawnDist = 3f;   // первый прямоугольник (ближний)
+    public float middleSpawnDist = 6f;  // второй прямоугольник (граница спавна)
+    public float outerSleepDist = 10f;  // третий прямоугольник (граница сна)
+
+    public GridManager gridManager;
+    public MonsterManager monsterManager;
+
     // Автоматически найденные компоненты
     private SpriteRenderer bikeSprite;
     private Collider2D bikeCollider;
@@ -31,13 +39,19 @@ public class GameManager : MonoBehaviour
 
     private void Awake()
     {
-        Instance = this;
-        CacheComponents();
+        if (Instance == null)
+            {
+                Instance = this;
+                CacheComponents();
+                DontDestroyOnLoad(gameObject);
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
     }
 
-    /// <summary>
     /// Ищет все нужные компоненты на корневых объектах и их детях
-    /// </summary>
     private void CacheComponents()
     {
         if (bike != null)
