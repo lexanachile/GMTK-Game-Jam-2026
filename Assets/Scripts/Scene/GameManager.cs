@@ -17,6 +17,7 @@ public class GameManager : MonoBehaviour
     [Header("UI")]
     public GameObject playButton;
     public GameObject restartPanel;
+    public GameObject gameEndPanel;
 
     // Автоматически найденные компоненты
     private SpriteRenderer bikeSprite;
@@ -28,7 +29,7 @@ public class GameManager : MonoBehaviour
     private CargoExplosion cargoExplosion;
     private CargoController cargoController;
 
-    void Awake()
+    private void Awake()
     {
         Instance = this;
         CacheComponents();
@@ -37,7 +38,7 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// Ищет все нужные компоненты на корневых объектах и их детях
     /// </summary>
-    void CacheComponents()
+    private void CacheComponents()
     {
         if (bike != null)
         {
@@ -65,8 +66,8 @@ public class GameManager : MonoBehaviour
         SetTransform(cargo, cargoStartPos, cargoStartRot);
 
         // Физика
-        //ResetRigidbody(bike);
-        //ResetRigidbody(cargo);
+        ResetRigidbody(bike);
+        ResetRigidbody(cargo);
 
         // Сброс флагов взрывов
         if (bikeExplosion) bikeExplosion.ResetExploded();
@@ -83,6 +84,7 @@ public class GameManager : MonoBehaviour
         // UI
         if (playButton) playButton.SetActive(false);
         if (restartPanel) restartPanel.SetActive(false);
+        if (gameEndPanel) gameEndPanel.SetActive(false);
     }
 
     /// <summary>
@@ -97,6 +99,26 @@ public class GameManager : MonoBehaviour
     public void DisableCargo() => EnableCargo(false);
 
     /// <summary>
+    /// Останавливает мотоцикл: отключает управление и гасит скорость
+    /// </summary>
+    public void StopBike()
+    {
+        if (bikeController) bikeController.enabled = false;
+        ResetRigidbody(bike);
+    }
+
+    /// <summary>
+    /// Показывает панель конца игры и останавливает мотоцикл
+    /// </summary>
+    public void ShowGameEndMenu()
+    {
+        StopBike();
+
+        if (restartPanel) restartPanel.SetActive(false);
+        if (gameEndPanel) gameEndPanel.SetActive(true);
+    }
+
+    /// <summary>
     /// Включает/отключает визуал, коллизии и контроллер мотоцикла
     /// </summary>
     private void EnableBike(bool enable)
@@ -105,9 +127,12 @@ public class GameManager : MonoBehaviour
         if (bikeCollider) bikeCollider.enabled = enable;
         if (bikeController) bikeController.enabled = enable;
 
-        // Физика
         ResetRigidbody(bike);
     }
+
+    /// <summary>
+    /// Включает/отключает визуал, коллизии и контроллер коробки
+    /// </summary>
     private void EnableCargo(bool enable)
     {
         ResetRigidbody(cargo);
@@ -116,12 +141,9 @@ public class GameManager : MonoBehaviour
         if (cargoCollider) cargoCollider.enabled = enable;
         if (cargoController) cargoController.enabled = enable;
     }
-    public void StopBike()
-    {
-        if (bikeController) bikeController.enabled = false;
-    }
 
     // --- Вспомогательные методы ---
+
     private void SetTransform(GameObject obj, Vector3 pos, Quaternion rot)
     {
         if (obj == null) return;
