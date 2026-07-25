@@ -65,13 +65,13 @@ MonoBehaviour:
   active: 1
   type:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: 6
   intensity:
     m_OverrideState: 1
-    m_Value: 0.205
+    m_Value: 0.204
   response:
     m_OverrideState: 1
-    m_Value: 0.503
+    m_Value: 0.654
   texture:
     m_OverrideState: 1
     m_Value: {fileID: 0}
@@ -96,10 +96,10 @@ MonoBehaviour:
     m_Value: {x: 0.5, y: 0.5}
   intensity:
     m_OverrideState: 1
-    m_Value: 0.375
+    m_Value: 0.269
   smoothness:
     m_OverrideState: 1
-    m_Value: 0.271
+    m_Value: 0.068
   rounded:
     m_OverrideState: 0
     m_Value: 0
@@ -149,6 +149,7 @@ MonoBehaviour:
   - {fileID: 1574034306449014813}
   - {fileID: -407586895786326085}
   - {fileID: -2980646147255084957}
+  - {fileID: 1938184502187453263}
 --- !u!114 &1574034306449014813
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -164,4 +165,26 @@ MonoBehaviour:
   active: 1
   intensity:
     m_OverrideState: 1
-    m_Value: 0.132
+    m_Value: 0.095
+--- !u!114 &1938184502187453263
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5485954d14dfb9a4c8ead8edb0ded5b1, type: 3}
+  m_Name: LiftGammaGain
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.LiftGammaGain
+  active: 0
+  lift:
+    m_OverrideState: 0
+    m_Value: {x: 1, y: 1, z: 1, w: -0.047528587}
+  gamma:
+    m_OverrideState: 1
+    m_Value: {x: 0.91453815, y: 0.6823689, z: 1, w: 0.057034213}
+  gain:
+    m_OverrideState: 1
+    m_Value: {x: 1, y: 0.79468566, z: 0.98356116, w: -0.17110266}

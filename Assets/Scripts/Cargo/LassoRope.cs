@@ -189,7 +189,7 @@ public class LassoRope : MonoBehaviour
         lineRenderer.alignment = LineAlignment.TransformZ;
         lineRenderer.useWorldSpace = true;
         lineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        lineRenderer.sortingOrder = 10;
+        lineRenderer.sortingOrder = 0;
         lineRenderer.numCornerVertices = 5;
         lineRenderer.numCapVertices = 3;
         lineRenderer.startColor = ropeColor;
