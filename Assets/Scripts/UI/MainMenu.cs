@@ -5,7 +5,7 @@ public class MainMenu : MonoBehaviour
 {
     public void PlayGame()
     {
-        SceneManager.LoadScene("SampleScene"); // имя твоей игровой сцены (без расширения)
+        SceneManager.LoadScene("Game"); // имя твоей игровой сцены (без расширения)
     }
 
     public void QuitGame()

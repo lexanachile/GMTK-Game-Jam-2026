@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1015113420297369398}
   - component: {fileID: 1914313481468757664}
   - component: {fileID: 3947057362543916523}
+  - component: {fileID: 7545073230046247597}
   m_Layer: 6
   m_Name: Rock_9
   m_TagString: Untagged
@@ -129,3 +130,17 @@ CapsuleCollider2D:
   m_Offset: {x: -0.8773501, y: -1.2156868}
   m_Size: {x: 42.577827, y: 11.639777}
   m_Direction: 1
+--- !u!114 &7545073230046247597
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4099591549601772401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 549ac7010af7d504b9eadac5bf872a44, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MapObject
+  type: 2
+  visibleOnMap: 1

@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5627239775146826102}
   - component: {fileID: 394934753619485109}
   - component: {fileID: 1392180465515341620}
+  - component: {fileID: -8221013259009497044}
   m_Layer: 6
   m_Name: Rock_4
   m_TagString: Untagged
@@ -159,3 +160,17 @@ PolygonCollider2D:
       - {x: 12.275589, y: -3.527771}
       - {x: 27.634048, y: 3.114334}
   m_UseDelaunayMesh: 1
+--- !u!114 &-8221013259009497044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4597540777733441618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 549ac7010af7d504b9eadac5bf872a44, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MapObject
+  type: 2
+  visibleOnMap: 1
