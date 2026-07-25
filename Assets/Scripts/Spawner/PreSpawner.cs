@@ -21,7 +21,23 @@ public class PreSpawner : MonoBehaviour
 
     private IEnumerator Start()
     {
-        // Ждём, чтобы GridManager точно проинициализировался
+        yield return SpawnAll();
+    }
+
+    /// <summary>
+    /// Перезапускает преспавн (вызывается из GameManager при рестарте).
+    /// Уничтожение старых монстров делает MonsterManager.DestroyAllMonsters().
+    /// </summary>
+    public void Respawn()
+    {
+        StopAllCoroutines();
+        StartCoroutine(SpawnAll());
+    }
+
+    private IEnumerator SpawnAll()
+    {
+        // Ждём кадр, чтобы GridManager точно проинициализировался,
+        // а старые монстры успели уничтожиться (Destroy откладывается на конец кадра)
         yield return null;
 
         foreach (var zone in zones)

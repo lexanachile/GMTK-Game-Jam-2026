@@ -26,10 +26,12 @@ public class GameManager : MonoBehaviour
 
     public GridManager gridManager;
     public MonsterManager monsterManager;
+    public PreSpawner preSpawner;
 
     // Автоматически найденные компоненты
     private SpriteRenderer bikeSprite;
     private Collider2D bikeCollider;
+    private Rigidbody2D bikeRb;
     private BikeExplosion bikeExplosion;
     private MotorcycleController bikeController;
     private SpriteRenderer cargoSprite;
@@ -58,6 +60,7 @@ public class GameManager : MonoBehaviour
         {
             bikeSprite = bike.GetComponentInChildren<SpriteRenderer>();
             bikeCollider = bike.GetComponentInChildren<Collider2D>();
+            bikeRb = bike.GetComponentInChildren<Rigidbody2D>();
             bikeExplosion = bike.GetComponentInChildren<BikeExplosion>();
             bikeController = bike.GetComponentInChildren<MotorcycleController>();
         }
@@ -87,6 +90,10 @@ public class GameManager : MonoBehaviour
         if (bikeExplosion) bikeExplosion.ResetExploded();
         if (cargoExplosion) cargoExplosion.ResetExploded();
 
+        // Монстры: уничтожаем всех и спавним заново через PreSpawner
+        if (monsterManager) monsterManager.DestroyAllMonsters();
+        if (preSpawner) preSpawner.Respawn();
+
         // Включаем визуал, коллизии и управление
         EnableBike(true);
         EnableCargo(true);
@@ -113,12 +120,19 @@ public class GameManager : MonoBehaviour
     public void DisableCargo() => EnableCargo(false);
 
     /// <summary>
-    /// Останавливает мотоцикл: отключает управление и гасит скорость
+    /// Останавливает мотоцикл: отключает управление, гасит скорость
+    /// и замораживает Rigidbody2D, чтобы его не толкали монстры/физика
     /// </summary>
     public void StopBike()
     {
         if (bikeController) bikeController.enabled = false;
-        ResetRigidbody(bike);
+
+        if (bikeRb)
+        {
+            bikeRb.linearVelocity = Vector2.zero;
+            bikeRb.angularVelocity = 0f;
+            bikeRb.constraints = RigidbodyConstraints2D.FreezeAll;
+        }
     }
 
     /// <summary>
@@ -137,6 +151,10 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void EnableBike(bool enable)
     {
+        // Снимаем заморозку, установленную StopBike()
+        if (enable && bikeRb)
+            bikeRb.constraints = RigidbodyConstraints2D.None;
+
         if (bikeSprite) bikeSprite.enabled = enable;
         if (bikeCollider) bikeCollider.enabled = enable;
         if (bikeController) bikeController.enabled = enable;
@@ -167,7 +185,8 @@ public class GameManager : MonoBehaviour
     private void ResetRigidbody(GameObject obj)
     {
         if (obj == null) return;
-        Rigidbody2D rb = obj.GetComponent<Rigidbody2D>();
+        // GetComponentInChildren: Rigidbody2D может быть на дочернем объекте
+        Rigidbody2D rb = obj.GetComponentInChildren<Rigidbody2D>();
         if (rb)
         {
             rb.linearVelocity = Vector2.zero;
