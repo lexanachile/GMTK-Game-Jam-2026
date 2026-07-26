@@ -26,6 +26,9 @@ public class LassoRope : MonoBehaviour
     [SerializeField] private float cargoMaxDistance = 0f;
 
     [Header("Cargo Pull (one-way — bike is never pulled)")]
+    [Tooltip("Отключить физическую коллизию байк↔коробка. Без этого коробка упирается в байк\n" +
+             "(его масса намного больше) и не может перелететь его по инерции.")]
+    [SerializeField] private bool ignoreBikeCargoCollision = true;
     [Tooltip("How hard cargo is reeled in when over max path length")]
     [SerializeField] private float stretchForceBase = 150f;
     [SerializeField, Range(1f, 4f)] private float stretchExponent = 2.5f;
@@ -92,18 +95,17 @@ public class LassoRope : MonoBehaviour
     [SerializeField] private float lodDistance = 30f;
 
     [Header("Tension Visualization")]
-    [SerializeField] private bool visualizeTension = true;
-    [SerializeField] private Color slackColor = new Color(0.45f, 0.25f, 0.08f, 1f);
-    [SerializeField] private Color tautColor = new Color(0.8f, 0.3f, 0.1f, 1f);
-    [SerializeField] private Color overstretchColor = new Color(1f, 0.2f, 0.1f, 1f);
+    [SerializeField] private bool visualizeTension = false;
+    [SerializeField] private Color slackColor = Color.white;
+    [SerializeField] private Color tautColor = Color.white;
+    [SerializeField] private Color overstretchColor = Color.white;
 
     [Header("Visual")]
     [SerializeField] private float ropeWidth = 0.3f;
-    [SerializeField] private float textureTiling = 4f;
     [SerializeField] private float wobbleAmount = 0.005f;
     [SerializeField] private float wobbleSpeed = 2f;
     [SerializeField, Range(0, 4)] private int smoothSubdivisions = 1;
-    [SerializeField] private Color ropeColor = new Color(0.45f, 0.25f, 0.08f, 1f);
+    [SerializeField] private Color ropeColor = Color.white;
 
     [Header("Legacy")]
     [Tooltip("Old DistanceJoint2D bike↔cargo — disabled at runtime. Can be removed from Cargo.")]
@@ -111,6 +113,7 @@ public class LassoRope : MonoBehaviour
 
     private LineRenderer lineRenderer;
     private Material ropeMaterial;
+    private bool ownsRopeMaterial;
     private Rigidbody2D bikeRb;
     private Rigidbody2D cargoRb;
     private float maxRopeLength;
@@ -185,24 +188,18 @@ public class LassoRope : MonoBehaviour
     private void Awake()
     {
         lineRenderer = GetComponent<LineRenderer>();
-        lineRenderer.textureMode = LineTextureMode.Tile;
+        lineRenderer.textureMode = LineTextureMode.Stretch;
         lineRenderer.alignment = LineAlignment.TransformZ;
         lineRenderer.useWorldSpace = true;
         lineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         lineRenderer.sortingOrder = 0;
         lineRenderer.numCornerVertices = 5;
         lineRenderer.numCapVertices = 3;
-        lineRenderer.startColor = ropeColor;
-        lineRenderer.endColor = ropeColor;
         lineRenderer.startWidth = ropeWidth;
         lineRenderer.endWidth = ropeWidth;
 
-        ropeMaterial = lineRenderer.material;
-        if (ropeMaterial != null)
-        {
-            ropeMaterial.color = ropeColor;
-            ropeMaterial.SetColor("_Color", ropeColor);
-        }
+        SetupSolidRopeMaterial();
+        ApplyRopeColor(ropeColor);
 
         wrapFilter = new ContactFilter2D
         {
@@ -212,6 +209,77 @@ public class LassoRope : MonoBehaviour
         wrapFilter.SetLayerMask(ropeCollisionMask);
 
         mainCamera = Camera.main;
+    }
+
+    /// <summary>
+    /// Solid unlit color, no texture. Instance is owned so builds never get missing-shader pink.
+    /// Prefers the LineRenderer/scene material shader (keeps URP Unlit in the player build).
+    /// </summary>
+    private void SetupSolidRopeMaterial()
+    {
+        if (ownsRopeMaterial && ropeMaterial != null)
+            Destroy(ropeMaterial);
+
+        Material source = lineRenderer.sharedMaterial;
+        bool sourceOk = source != null && source.shader != null &&
+                        source.shader.name != "Hidden/InternalErrorShader";
+
+        if (sourceOk)
+        {
+            ropeMaterial = new Material(source) { name = "RopeSolid (Runtime)" };
+        }
+        else
+        {
+            Shader shader =
+                Shader.Find("Universal Render Pipeline/Unlit") ??
+                Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default") ??
+                Shader.Find("Sprites/Default") ??
+                Shader.Find("Unlit/Color");
+
+            if (shader == null)
+            {
+                Debug.LogError("LassoRope: no unlit shader found for solid rope color.", this);
+                return;
+            }
+
+            ropeMaterial = new Material(shader) { name = "RopeSolid (Runtime)" };
+        }
+
+        ownsRopeMaterial = true;
+
+        // Force solid white base — no rope texture / pink missing-tex
+        if (ropeMaterial.HasProperty("_BaseMap"))
+            ropeMaterial.SetTexture("_BaseMap", Texture2D.whiteTexture);
+        if (ropeMaterial.HasProperty("_MainTex"))
+            ropeMaterial.SetTexture("_MainTex", Texture2D.whiteTexture);
+        ropeMaterial.mainTexture = Texture2D.whiteTexture;
+
+        lineRenderer.sharedMaterial = ropeMaterial;
+    }
+
+    private void ApplyRopeColor(Color color)
+    {
+        if (lineRenderer == null)
+            return;
+
+        var gradient = new Gradient();
+        gradient.SetKeys(
+            new[] { new GradientColorKey(color, 0f), new GradientColorKey(color, 1f) },
+            new[] { new GradientAlphaKey(color.a, 0f), new GradientAlphaKey(color.a, 1f) });
+        lineRenderer.colorGradient = gradient;
+        lineRenderer.startColor = color;
+        lineRenderer.endColor = color;
+
+        if (ropeMaterial == null)
+            return;
+
+        ropeMaterial.color = color;
+        if (ropeMaterial.HasProperty("_BaseColor"))
+            ropeMaterial.SetColor("_BaseColor", color);
+        if (ropeMaterial.HasProperty("_Color"))
+            ropeMaterial.SetColor("_Color", color);
+        if (ropeMaterial.HasProperty("_RendererColor"))
+            ropeMaterial.SetColor("_RendererColor", color);
     }
 
     private void Start()
@@ -247,6 +315,8 @@ public class LassoRope : MonoBehaviour
         prevCargoPos = endPoint.position;
 
         ConfigureCargoBody();
+        if (ignoreBikeCargoCollision)
+            IgnoreBikeCargoCollision();
         RebuildPath();
         InitializeVerlet();
 
@@ -276,10 +346,32 @@ public class LassoRope : MonoBehaviour
             col.sharedMaterial = cargoZeroFrictionMaterial;
     }
 
+    /// <summary>
+    /// Байк и коробка не сталкиваются физически: иначе коробка упирается в байк
+    /// (масса байка в десятки раз больше) и не может перелететь его по инерции,
+    /// когда байк тормозит. Перелёт и стоп об верёвку — геймплейная механика.
+    /// </summary>
+    private void IgnoreBikeCargoCollision()
+    {
+        Collider2D[] bikeCols = bikeRb.GetComponentsInChildren<Collider2D>();
+        Collider2D[] cargoCols = cargoRb.GetComponentsInChildren<Collider2D>();
+
+        for (int i = 0; i < bikeCols.Length; i++)
+        {
+            for (int j = 0; j < cargoCols.Length; j++)
+            {
+                if (bikeCols[i] != null && cargoCols[j] != null)
+                    Physics2D.IgnoreCollision(bikeCols[i], cargoCols[j], true);
+            }
+        }
+    }
+
     private void OnDestroy()
     {
         if (cargoZeroFrictionMaterial != null)
             Destroy(cargoZeroFrictionMaterial);
+        if (ownsRopeMaterial && ropeMaterial != null)
+            Destroy(ropeMaterial);
     }
 
     private void FixedUpdate()
@@ -344,9 +436,7 @@ public class LassoRope : MonoBehaviour
             targetColor = Color.Lerp(tautColor, overstretchColor, t);
         }
 
-        ropeMaterial.color = targetColor;
-        lineRenderer.startColor = targetColor;
-        lineRenderer.endColor = targetColor;
+        ApplyRopeColor(targetColor);
     }
 
     // -------------------------------------------------------------------------
@@ -1145,14 +1235,6 @@ public class LassoRope : MonoBehaviour
         lineRenderer.SetPositions(linePositions);
         lineRenderer.startWidth = ropeWidth;
         lineRenderer.endWidth = ropeWidth;
-
-        if (ropeMaterial != null && smoothed.Count > 1)
-        {
-            float len = 0f;
-            for (int i = 0; i < smoothed.Count - 1; i++)
-                len += Vector3.Distance(smoothed[i], smoothed[i + 1]);
-            ropeMaterial.mainTextureScale = new Vector2(len * textureTiling, 1f);
-        }
     }
 
     private static void CatmullRomSmooth(List<Vector3> pts, int sub, List<Vector3> result)

@@ -13,7 +13,7 @@ TagManager:
   - UI
   - Obstacle
   - Rope
-  - 
+  - Monsters
   - 
   - 
   - 
@@ -43,6 +43,9 @@ TagManager:
     locked: 0
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: Boom
+    uniqueID: 662671591
     locked: 0
   - name: Canvas
     uniqueID: 2078274481

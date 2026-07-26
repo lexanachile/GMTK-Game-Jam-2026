@@ -22,16 +22,44 @@ public class GameEndBlock : MonoBehaviour
     public float minDelay = 0f;
     public float maxDelay = 1.5f;
 
-    private bool triggered = false;
+    [Header("Невидимая зона обнаружения")]
+    public Vector2 zoneSize = new Vector2(5f, 3f);    // ширина и высота прямоугольника
+    public Vector2 zoneOffset = Vector2.zero;          // смещение относительно позиции объекта
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    [Header("Объект коробки (с CargoExplosion)")]
+    public Transform boxTarget;                        // перетащите сюда коробку (или оставьте пустым для авто-поиска)
+
+    private bool triggered = false;
+    private bool wasInside = false;
+
+    private void Start()
     {
-        TryActivate(collision.gameObject);
+        // Если коробка не назначена вручную, пытаемся найти её автоматически
+        if (boxTarget == null)
+        {
+            CargoExplosion box = FindObjectOfType<CargoExplosion>();
+            if (box != null)
+                boxTarget = box.transform;
+        }
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+    void Update()
     {
-        TryActivate(other.gameObject);
+        if (triggered || boxTarget == null) return;
+
+        // Мировая позиция центра зоны
+        Vector3 zoneCenter = transform.position + (Vector3)zoneOffset;
+
+        // Прямоугольная область
+        Bounds bounds = new Bounds(zoneCenter, zoneSize);
+        bool isInside = bounds.Contains(boxTarget.position);
+
+        if (isInside && !wasInside)
+        {
+            TryActivate(boxTarget.gameObject);
+        }
+
+        wasInside = isInside;
     }
 
     private void TryActivate(GameObject other)
@@ -39,21 +67,18 @@ public class GameEndBlock : MonoBehaviour
         if (triggered) return;
 
         CargoExplosion cargo = other.GetComponent<CargoExplosion>();
-        if (cargo == null) return;   // реагируем только на коробку
+        if (cargo == null) return;
 
         triggered = true;
 
-        // Отключаем коллайдер и визуал, чтобы избежать повторных срабатываний
-        Collider2D col = GetComponent<Collider2D>();
-        if (col != null) col.enabled = false;
-
+        // Отключаем визуал самого блока (если есть SpriteRenderer)
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (sr != null) sr.enabled = false;
 
-        // Запускаем взрыв коробки (без показа рестарта) – мотоцикл остановится внутри
+        // Взрыв коробки без показа меню
         cargo.ExplodeWithoutRestart();
 
-        // Запускаем собственную серию взрывов
+        // Собственная серия взрывов
         StartCoroutine(ExplodeSequence());
     }
 
@@ -82,7 +107,6 @@ public class GameEndBlock : MonoBehaviour
             StartCoroutine(SpawnSingleExplosion(prefab, spawnPos, scale, delay));
         }
 
-        // Ждём завершения последнего взрыва, затем показываем меню конца игры
         yield return new WaitForSeconds(lastDelay + 0.1f);
         ShowGameOverAndDestroy();
     }
@@ -100,5 +124,12 @@ public class GameEndBlock : MonoBehaviour
             GameManager.Instance.ShowGameEndMenu();
 
         Destroy(gameObject);
+    }
+
+    // Визуализация зоны в редакторе (только для разработчика)
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = new Color(1, 1, 0, 0.3f);
+        Gizmos.DrawCube(transform.position + (Vector3)zoneOffset, zoneSize);
     }
 }

@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 8046500015702090030}
   - component: {fileID: 108972793225915844}
   - component: {fileID: 3364960545650960736}
+  - component: {fileID: -5050400503989642104}
   m_Layer: 6
   m_Name: Stik_5
   m_TagString: Untagged
@@ -167,3 +168,17 @@ CapsuleCollider2D:
   m_Offset: {x: -0.48, y: -0.46282762}
   m_Size: {x: 9.904847, y: 9.115116}
   m_Direction: 1
+--- !u!114 &-5050400503989642104
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 370178269964425266}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 549ac7010af7d504b9eadac5bf872a44, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MapObject
+  type: 2
+  visibleOnMap: 1

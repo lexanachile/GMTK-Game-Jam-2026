@@ -17,8 +17,17 @@ public class CargoController : MonoBehaviour
     [Tooltip("Множитель трения на высокой скорости (1 = одинаковое, 2 = двойное на максимуме).")]
     [SerializeField] private float highSpeedFrictionMultiplier = 1.5f;
 
+    [Header("Inertia")]
+    [Tooltip("Насколько коробка сохраняет импульс, пока верёвка не натянута.\n" +
+             "  0 = сразу подстраивается под скорость байка (старое поведение)\n" +
+             "  1 = едет по инерции; при торможении байка перелетает и стопорится об верёвку")]
+    [SerializeField, Range(0f, 1f)] private float inertia = 1f;
+    [Tooltip("С какой натяжки (0-1) включается торможение «в ногу» с байком.\n" +
+             "Ниже порога при inertia>0 скорость почти не режется — только трение и LassoRope.")]
+    [SerializeField, Range(0f, 1f)] private float brakeEngageTension = 0.75f;
+
     [Header("Braking")]
-    [Tooltip("Базовая сила торможения (ед/с²).")]
+    [Tooltip("Базовая сила торможения (ед/с²) когда inertia низкая или верёвка натянута.")]
     [SerializeField] private float brakeDeceleration = 40f;
     [Tooltip("X: нормализованная скорость груза (0-1), Y: множитель силы торможения.\n" +
              "  Y > 1 при высокой скорости = сильнее торможение на скорости\n" +
@@ -182,12 +191,29 @@ public class CargoController : MonoBehaviour
         float speedDiff = cargoSpeed - bikeSpeed;
         if (speedDiff < brakeSpeedThreshold) return;
 
-        float curveValue = brakeCurve.Evaluate(normalizedSpeed);
         float tension = GetRopeTension();
+        // inertia=1 + slack rope → no speed-match brake (cargo overshoots, rope stops it)
+        // inertia=0 → always brake like before
+        float tensionEngage = Mathf.InverseLerp(brakeEngageTension, 1f, tension);
+        float brakeAuthority = Mathf.Lerp(1f, tensionEngage, inertia);
+        if (brakeAuthority <= 0.001f) return;
+
+        // Ключевое: на буксире верёвка всегда натянута (tension≈1), поэтому gate
+        // только по натяжке не работает — тормоз не даёт коробке начать сближение.
+        // При inertia=1 тормозим только компоненту скорости, растягивающую верёвку
+        // (полёт ОТ якоря). Импульс, несущий коробку К байку/мимо него, сохраняется:
+        // байк тормозит → коробка перелетает → стопорится об верёвку (LassoRope).
+        Vector2 pullDir = GetRopePullDirection();
+        float outwardSpeed = Vector2.Dot(rb.linearVelocity, -pullDir);
+        float brakeCap = Mathf.Lerp(speedDiff, Mathf.Max(outwardSpeed, 0f), inertia);
+
+        float curveValue = brakeCurve.Evaluate(normalizedSpeed);
         float tensionMultiplier = Mathf.Lerp(1f, ropeTensionBrakeMultiplier, tension);
 
-        float brakeAmount = brakeDeceleration * curveValue * tensionMultiplier * Time.fixedDeltaTime;
-        brakeAmount = Mathf.Min(brakeAmount, speedDiff);
+        float brakeAmount = brakeDeceleration * curveValue * tensionMultiplier
+            * brakeAuthority * Time.fixedDeltaTime;
+        brakeAmount = Mathf.Min(brakeAmount, brakeCap);
+        if (brakeAmount <= 0f) return;
 
         Vector2 brakeDir = -rb.linearVelocity.normalized;
         rb.linearVelocity += brakeDir * brakeAmount;
