@@ -38,7 +38,7 @@ public class GameTimer : MonoBehaviour
         UpdateUI();
 
         // Проверяем окончание
-        if (CurrentTime <= 0f)
+        if (CurrentTime <= 1f)
         {
             CurrentTime = 0f;
             IsRunning = false;
@@ -99,7 +99,7 @@ public class GameTimer : MonoBehaviour
     /// </summary>
     public void ResetTimer()
     {
-        CurrentTime = startTime;
+        CurrentTime = startTime + 1;
         IsRunning = false;
         IsPaused = false;
         UpdateUI();

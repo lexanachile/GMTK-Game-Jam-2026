@@ -53,6 +53,10 @@ public class BikeExplosion : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             float delay = Random.Range(minDelay, maxDelay);
+            if (i == 0)
+            {
+                delay = 0f;
+            }
 
             GameObject prefab = explosionPrefabs[Random.Range(0, explosionPrefabs.Length)];
             Vector3 offset = new Vector3(Random.Range(-maxOffsetX, maxOffsetX),

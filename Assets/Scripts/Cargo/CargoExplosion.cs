@@ -60,7 +60,7 @@ public class CargoExplosion : MonoBehaviour
     /// <summary>
     /// Общая логика взрыва: останавливаем мотоцикл, прячем коробку, спавним взрывы
     /// </summary>
-    private void Explode(bool showRestart)
+    public void Explode(bool showRestart)
     {
         if (exploded) return;
         exploded = true;
@@ -87,6 +87,10 @@ public class CargoExplosion : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             float delay = Random.Range(minDelay, maxDelay);
+            if (i == 0)
+            {
+                delay = 0f;
+            }
 
             GameObject prefab = explosionPrefabs[Random.Range(0, explosionPrefabs.Length)];
             Vector3 offset = new Vector3(Random.Range(-maxOffsetX, maxOffsetX),

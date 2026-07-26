@@ -27,6 +27,7 @@ public class GameManager : MonoBehaviour
     public GridManager gridManager;
     public MonsterManager monsterManager;
     public PreSpawner preSpawner;
+    public GameTimer gameTimer;
 
     // Автоматически найденные компоненты
     private SpriteRenderer bikeSprite;
@@ -111,7 +112,11 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// Рестарт (вызывается из UI, например, по клавише R)
     /// </summary>
-    public void RestartLevel() => StartGame();
+    public void RestartLevel(){
+        gameTimer.ResetTimer();
+        gameTimer.StartTimer();
+        StartGame();
+    }
 
     /// <summary>
     /// Отключает спрайты, коллайдеры и управление (используется при взрыве)
@@ -158,6 +163,10 @@ public class GameManager : MonoBehaviour
         if (bikeSprite) bikeSprite.enabled = enable;
         if (bikeCollider) bikeCollider.enabled = enable;
         if (bikeController) bikeController.enabled = enable;
+
+        // Сбрасываем внутреннее состояние контроллера (forward/lateral/lean dynamics),
+        // чтобы скорость не переносилась с предыдущего заезда.
+        if (enable && bikeController) bikeController.ResetState();
 
         ResetRigidbody(bike);
     }
