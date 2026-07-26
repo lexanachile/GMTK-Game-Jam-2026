@@ -143,16 +143,21 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// Показывает панель конца игры и останавливает мотоцикл
     /// </summary>
-    public void ShowGameEndMenu()
-    {
-        StopBike();
+public void ShowGameEndMenu(float finalTime)   // ← добавили параметр
+{
+    StopBike();
 
-        if (restartPanel) restartPanel.SetActive(false);
-        if (gameEndPanel) gameEndPanel.SetActive(true);
+    if (restartPanel) restartPanel.SetActive(false);
+    if (gameEndPanel) gameEndPanel.SetActive(true);
 
-        if (AudioManager.Instance != null)
-            AudioManager.Instance.PlayEndPanel();
-    }
+    // Передаём время скрипту, который висит на gameEndPanel
+    GameEndPanel panel = gameEndPanel.GetComponent<GameEndPanel>();
+    if (panel != null)
+        panel.DisplayTime(finalTime);
+
+    if (AudioManager.Instance != null)
+        AudioManager.Instance.PlayEndPanel();
+}
 
     /// <summary>
     /// Включает/отключает визуал, коллизии и контроллер мотоцикла

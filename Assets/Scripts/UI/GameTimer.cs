@@ -19,6 +19,7 @@ public class GameTimer : MonoBehaviour
     public float CurrentTime { get; private set; }
     public bool IsRunning { get; private set; }
     public bool IsPaused { get; private set; }
+    public float StartTimeValue => startTime;   // доступ к начальному времени
 
     private void Start()
     {
