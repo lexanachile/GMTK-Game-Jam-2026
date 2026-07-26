@@ -343,12 +343,14 @@ public class MotorcycleController : MonoBehaviour
 
     private void OnEnable()
     {
-        controls.Motorcycle.Enable();
+        if (controls != null)
+            controls.Motorcycle.Enable();
     }
 
     private void OnDisable()
     {
-        controls.Motorcycle.Disable();
+        if (controls != null)
+            controls.Motorcycle.Disable();
         if (AudioManager.Instance != null)
             AudioManager.Instance.StopEngine();
     }
@@ -371,13 +373,7 @@ public class MotorcycleController : MonoBehaviour
     private void UpdateEngineSound()
     {
         if (AudioManager.Instance == null) return;
-
-        if (ForwardSpeed > 1f)
-            AudioManager.Instance.PlayEngineDriving(NormalizedSpeed);
-        else if (ForwardSpeed < -0.5f)
-            AudioManager.Instance.PlayEngineReverse();
-        else
-            AudioManager.Instance.PlayEngineIdle();
+        AudioManager.Instance.UpdateEngine(NormalizedSpeed, ForwardSpeed);
     }
 
     private void FixedUpdate()
@@ -391,6 +387,7 @@ public class MotorcycleController : MonoBehaviour
 
     private void ReadInput()
     {
+        if (controls == null) return;
         Vector2 move = controls.Motorcycle.Move.ReadValue<Vector2>();
         inputX = move.x;
         inputY = move.y;

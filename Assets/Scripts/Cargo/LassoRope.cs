@@ -525,6 +525,9 @@ public class LassoRope : MonoBehaviour
     /// </summary>
     private void SimulateRope()
     {
+        if (particles == null || particles.Length < 2)
+            return;
+
         int n = particles.Length;
 
         // Fixed material rest length: never shrinks below maxRopeLength.

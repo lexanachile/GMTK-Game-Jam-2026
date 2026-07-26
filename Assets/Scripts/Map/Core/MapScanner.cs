@@ -23,6 +23,9 @@ public class MapScanner : MonoBehaviour
 
     void RevealAroundPlayer()
     {
+        if (database == null || database.Cells == null || player == null || settings == null)
+            return;
+
         Vector2Int playerCell = database.WorldToCell(player.position);
 
         for (int x = -settings.scanRadius; x <= settings.scanRadius; x++)
@@ -42,7 +45,8 @@ public class MapScanner : MonoBehaviour
                     database.Cells[cell.x, cell.y].explored = true;
                     database.Cells[cell.x, cell.y].type = MapCellType.Empty;
 
-                    MapRenderer.Instance.UpdateCell(cell.x, cell.y);
+                    if (MapRenderer.Instance != null)
+                        MapRenderer.Instance.UpdateCell(cell.x, cell.y);
                 }
             }
         }
@@ -50,6 +54,9 @@ public class MapScanner : MonoBehaviour
 
     void RevealObjects()
     {
+        if (database == null || database.Cells == null || MapRegistry.Instance == null)
+            return;
+
         foreach (var obj in MapRegistry.Instance.Objects)
         {
             if (!obj.visibleOnMap)
