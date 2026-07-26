@@ -3,6 +3,9 @@ using System.Collections;
 
 public class GameEndBlock : MonoBehaviour
 {
+    [Header("Ссылка на таймер")]
+    [SerializeField] private GameTimer gameTimer;  
+
     [Header("Префабы взрывов")]
     public GameObject[] explosionPrefabs;
 
@@ -127,13 +130,21 @@ public class GameEndBlock : MonoBehaviour
             AudioManager.Instance.PlayExplosion();
     }
 
-    private void ShowGameOverAndDestroy()
-    {
-        if (GameManager.Instance != null)
-            GameManager.Instance.ShowGameEndMenu();
+private void ShowGameOverAndDestroy()
+{
+    if (gameTimer != null)
+        gameTimer.StopTimer();
 
-        Destroy(gameObject);
-    }
+    // Пройденное время = стартовое - оставшееся
+    float elapsedTime = 0f;
+    if (gameTimer != null)
+        elapsedTime = gameTimer.StartTimeValue - gameTimer.CurrentTime;
+
+    if (GameManager.Instance != null)
+        GameManager.Instance.ShowGameEndMenu(elapsedTime);
+
+    Destroy(gameObject);
+}
 
     // Визуализация зоны в редакторе (только для разработчика)
     private void OnDrawGizmosSelected()
