@@ -82,8 +82,8 @@ public class BikeExplosion : MonoBehaviour
             GameManager.Instance.restartPanel.SetActive(true);
     }
 
-    public void ResetExploded()
+    public void SetExploded(bool param = true)
     {
-        exploded = false;
+        exploded = param;
     }
 }

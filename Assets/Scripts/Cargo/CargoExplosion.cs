@@ -114,9 +114,9 @@ public class CargoExplosion : MonoBehaviour
         if (GameManager.Instance != null && GameManager.Instance.restartPanel != null)
             GameManager.Instance.restartPanel.SetActive(true);
     }
-
-    public void ResetExploded()
+    
+    public void SetExploded(bool param = true)
     {
-        exploded = false;
+        exploded = param;
     }
 }

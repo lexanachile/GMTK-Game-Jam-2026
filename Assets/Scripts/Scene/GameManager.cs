@@ -88,8 +88,8 @@ public class GameManager : MonoBehaviour
         ResetRigidbody(cargo);
 
         // Сброс флагов взрывов
-        if (bikeExplosion) bikeExplosion.ResetExploded();
-        if (cargoExplosion) cargoExplosion.ResetExploded();
+        if (bikeExplosion) bikeExplosion.SetExploded(false);
+        if (cargoExplosion) cargoExplosion.SetExploded(false);
 
         // Монстры: уничтожаем всех и спавним заново через PreSpawner
         if (monsterManager) monsterManager.DestroyAllMonsters();

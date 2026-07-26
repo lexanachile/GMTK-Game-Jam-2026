@@ -29,6 +29,8 @@ public class GameEndBlock : MonoBehaviour
     [Header("Объект коробки (с CargoExplosion)")]
     public Transform boxTarget;                        // перетащите сюда коробку (или оставьте пустым для авто-поиска)
 
+    public BikeExplosion bike;
+
     private bool triggered = false;
     private bool wasInside = false;
 
@@ -70,6 +72,7 @@ public class GameEndBlock : MonoBehaviour
         if (cargo == null) return;
 
         triggered = true;
+        bike.SetExploded();
 
         // Отключаем визуал самого блока (если есть SpriteRenderer)
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
