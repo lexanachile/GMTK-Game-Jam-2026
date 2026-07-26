@@ -17,8 +17,14 @@ public class MapScanner : MonoBehaviour
 
     void Scan()
     {
+        RevealAroundPlayer();
+        RevealObjects();
+    }
+
+    void RevealAroundPlayer()
+    {
         Vector2Int playerCell = database.WorldToCell(player.position);
-        
+
         for (int x = -settings.scanRadius; x <= settings.scanRadius; x++)
         {
             for (int y = -settings.scanRadius; y <= settings.scanRadius; y++)
@@ -40,24 +46,48 @@ public class MapScanner : MonoBehaviour
                 }
             }
         }
-        
+    }
+
+    void RevealObjects()
+    {
         foreach (var obj in MapRegistry.Instance.Objects)
         {
-            Vector2Int cell = database.WorldToCell(obj.transform.position);
-            
-            if (!database.IsInside(cell))
+            if (!obj.visibleOnMap)
                 continue;
 
-            if (!database.Cells[cell.x, cell.y].explored)
+            Collider2D col = obj.GetComponent<Collider2D>();
+
+            if (col == null)
                 continue;
 
-            MapCellType newType = obj.type;
+            Bounds bounds = col.bounds;
 
-            if (database.Cells[cell.x, cell.y].type != newType)
+            Vector2Int min = database.WorldToCell(bounds.min);
+            Vector2Int max = database.WorldToCell(bounds.max);
+
+            for (int x = min.x; x <= max.x; x++)
             {
-                database.Cells[cell.x, cell.y].type = newType;
+                for (int y = min.y; y <= max.y; y++)
+                {
+                    Vector2Int cell = new Vector2Int(x, y);
 
-                MapRenderer.Instance.UpdateCell(cell.x, cell.y);
+                    if (!database.IsInside(cell))
+                        continue;
+
+                    if (!database.Cells[cell.x, cell.y].explored)
+                        continue;
+
+                    Vector3 worldPos = database.CellToWorld(cell);
+
+                    if (!col.OverlapPoint(worldPos))
+                        continue;
+
+                    if (database.Cells[cell.x, cell.y].type != obj.type)
+                    {
+                        database.Cells[cell.x, cell.y].type = obj.type;
+                        MapRenderer.Instance.UpdateCell(cell.x, cell.y);
+                    }
+                }
             }
         }
     }

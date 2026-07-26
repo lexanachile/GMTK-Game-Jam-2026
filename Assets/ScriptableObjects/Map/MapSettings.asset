@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6e2b54cd7fb96474982915def517af75, type: 3}
   m_Name: MapSettings
   m_EditorClassIdentifier: Assembly-CSharp::MapSettings
-  cellSize: 16
+  cellSize: 10
   scanRadius: 5
   unexploredColor: {r: 0, g: 0, b: 0, a: 1}
   emptyColor: {r: 0.2, g: 0.2, b: 0.2, a: 1}
@@ -20,6 +20,6 @@ MonoBehaviour:
   waterColor: {r: 0, g: 0, b: 1, a: 1}
   roadColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   forestColor: {r: 0, g: 1, b: 0, a: 1}
-  buildingColor: {r: 1, g: 1, b: 1, a: 1}
-  textureSize: 6000
-  zoom: 5
+  buildingColor: {r: 1, g: 0, b: 0, a: 1}
+  textureSize: 110
+  zoom: 78.96
