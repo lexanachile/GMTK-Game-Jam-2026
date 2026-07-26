@@ -349,6 +349,8 @@ public class MotorcycleController : MonoBehaviour
     private void OnDisable()
     {
         controls.Motorcycle.Disable();
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.StopEngine();
     }
 
     private void OnDestroy()
@@ -363,6 +365,19 @@ public class MotorcycleController : MonoBehaviour
         ReadInput();
         UpdateVisual();
         UpdateDriftTrails();
+        UpdateEngineSound();
+    }
+
+    private void UpdateEngineSound()
+    {
+        if (AudioManager.Instance == null) return;
+
+        if (ForwardSpeed > 1f)
+            AudioManager.Instance.PlayEngineDriving(NormalizedSpeed);
+        else if (ForwardSpeed < -0.5f)
+            AudioManager.Instance.PlayEngineReverse();
+        else
+            AudioManager.Instance.PlayEngineIdle();
     }
 
     private void FixedUpdate()

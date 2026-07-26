@@ -73,6 +73,8 @@ public class BikeExplosion : MonoBehaviour
         yield return new WaitForSeconds(delay);
         GameObject explosion = Instantiate(prefab, position, Quaternion.identity);
         explosion.transform.localScale = new Vector3(scale, scale, 1f);
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayExplosion();
     }
 
     private void ShowRestartPanel()
