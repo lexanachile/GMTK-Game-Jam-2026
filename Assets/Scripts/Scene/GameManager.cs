@@ -205,4 +205,39 @@ public class GameManager : MonoBehaviour
             rb.angularVelocity = 0f;
         }
     }
+    
+    // Добавьте в конец класса GameManager (после всех методов)
+
+    /// <summary>
+    /// Включает/отключает управление мотоциклом (используется панелькой)
+    /// </summary>
+    public void SetBikeControlEnabled(bool enabled)
+    {
+        if (bikeController != null)
+            bikeController.enabled = enabled;
+    
+        // Сбрасываем физику при отключении
+        if (!enabled && bikeRb != null)
+        {
+            bikeRb.linearVelocity = Vector2.zero;
+            bikeRb.angularVelocity = 0f;
+        }
+    }
+
+    /// <summary>
+    /// Включает/отключает управление коробкой (используется панелькой)
+    /// </summary>
+    public void SetCargoControlEnabled(bool enabled)
+    {
+        if (cargoController != null)
+            cargoController.enabled = enabled;
+    }
+
+    /// <summary>
+    /// Проверяет, включено ли управление мотоциклом
+    /// </summary>
+    public bool IsBikeControlEnabled()
+    {
+        return bikeController != null && bikeController.enabled;
+    }
 }
