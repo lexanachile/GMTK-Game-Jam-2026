@@ -54,4 +54,14 @@ public class MapDatabase : MonoBehaviour
                cell.x < WorldWidth &&
                cell.y < WorldHeight;
     }
+    
+    public Vector3 CellToWorld(Vector2Int cell)
+    {
+        Vector2 min = (Vector2)bounds.Bounds.min;
+
+        float x = min.x + (cell.x + 0.5f) * settings.cellSize;
+        float y = min.y + (cell.y + 0.5f) * settings.cellSize;
+
+        return new Vector3(x, y, 0f);
+    }
 }
