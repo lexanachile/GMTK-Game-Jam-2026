@@ -149,6 +149,9 @@ public class GameManager : MonoBehaviour
 
         if (restartPanel) restartPanel.SetActive(false);
         if (gameEndPanel) gameEndPanel.SetActive(true);
+
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayEndPanel();
     }
 
     /// <summary>

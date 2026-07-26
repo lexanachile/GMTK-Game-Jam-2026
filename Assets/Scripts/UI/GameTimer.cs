@@ -42,8 +42,10 @@ public class GameTimer : MonoBehaviour
         {
             CurrentTime = 0f;
             IsRunning = false;
-            UpdateUI(); // обновить UI, чтобы показать 0
-            OnTimerEnd?.Invoke(); // вызываем все привязанные методы
+            UpdateUI();
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlayTimerEnd();
+            OnTimerEnd?.Invoke();
         }
     }
 
