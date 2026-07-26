@@ -1,18 +1,20 @@
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class MainMenu : MonoBehaviour
 {
+    [SerializeField] GameObject SoundSlider;
+    private bool flag = false;
+
     public void PlayGame()
     {
-        SceneManager.LoadScene("SampleScene"); // имя твоей игровой сцены (без расширения)
+        SceneManager.LoadScene("MainGame"); // имя твоей игровой сцены (без расширения)
     }
 
-    public void QuitGame()
+    public void SoundControl()
     {
-        Application.Quit();
-        #if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-        #endif
+        flag = !flag;
+        SoundSlider.SetActive(flag);
     }
 }
