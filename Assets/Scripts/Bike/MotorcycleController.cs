@@ -192,6 +192,20 @@ public class MotorcycleController : MonoBehaviour
     }
 
     /// <summary>
+    /// Сбрасывает всё внутреннее состояние контроллера.
+    /// Вызывается GameManager при рестарте уровня, чтобы скорость
+    /// не переносилась с предыдущего заезда.
+    /// </summary>
+    public void ResetState()
+    {
+        forwardDynamics.Reset(0f);
+        lateralDynamics.Reset(0f);
+        leanDynamics.Reset(0f);
+        currentAngularVelocity = 0f;
+        reverseTimer = 0f;
+    }
+
+    /// <summary>
     /// Move solid colliders off the lean visual onto a fixed BodyCollision child
     /// so visual lean does not tilt the physics shape.
     /// </summary>

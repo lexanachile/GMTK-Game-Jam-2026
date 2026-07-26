@@ -96,6 +96,10 @@ public class GameEndBlock : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             float delay = Random.Range(minDelay, maxDelay);
+            if (i == 0)
+            {
+                delay = 0f;
+            }
             if (delay > lastDelay) lastDelay = delay;
 
             GameObject prefab = explosionPrefabs[Random.Range(0, explosionPrefabs.Length)];
