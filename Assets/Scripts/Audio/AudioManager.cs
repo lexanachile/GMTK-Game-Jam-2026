@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Audio;  // ← не забудьте добавить для AudioMixer
 
 public class AudioManager : MonoBehaviour
 {
@@ -48,6 +49,12 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip endPanelClip;
     [Range(0f, 1f)] [SerializeField] private float endPanelVolume = 0.7f;
 
+    // ======== НОВОЕ: AudioMixer ========
+    [Header("Audio Mixer")]
+    [SerializeField] private AudioMixer audioMixer;                     // ссылка на MainMixer
+    [SerializeField] private AudioMixerGroup sfxGroup;                 // группа SFX (взрывы, таймер, end panel)
+    [SerializeField] private AudioMixerGroup engineGroup;              // группа двигателя
+
     private AudioSource sfxSource;
     private AudioSource idleSource;
     private AudioSource drivingSource;
@@ -81,20 +88,28 @@ public class AudioManager : MonoBehaviour
 
     private void InitSources()
     {
+        // SFX источник
         sfxSource = gameObject.AddComponent<AudioSource>();
         sfxSource.playOnAwake = false;
+        sfxSource.outputAudioMixerGroup = sfxGroup;
 
+        // Двигатель – холостой ход
         idleSource = gameObject.AddComponent<AudioSource>();
         idleSource.playOnAwake = false;
         idleSource.loop = true;
+        idleSource.outputAudioMixerGroup = engineGroup;
 
+        // Двигатель – движение
         drivingSource = gameObject.AddComponent<AudioSource>();
         drivingSource.playOnAwake = false;
         drivingSource.loop = true;
+        drivingSource.outputAudioMixerGroup = engineGroup;
 
+        // Двигатель – задний ход
         reverseSource = gameObject.AddComponent<AudioSource>();
         reverseSource.playOnAwake = false;
         reverseSource.loop = true;
+        reverseSource.outputAudioMixerGroup = engineGroup;
     }
 
     private void UpdateEngineCrossfade()
@@ -199,5 +214,37 @@ public class AudioManager : MonoBehaviour
     {
         if (endPanelClip == null) return;
         sfxSource.PlayOneShot(endPanelClip, endPanelVolume);
+    }
+
+    // ======== НОВЫЕ МЕТОДЫ УПРАВЛЕНИЯ ГРОМКОСТЬЮ ========
+    /// <summary> Установить громкость Master (0..1) </summary>
+    public void SetMasterVolume(float volume01)
+    {
+        audioMixer.SetFloat("MasterVolume", LinearToDecibel(volume01));
+    }
+
+    /// <summary> Громкость SFX (взрывы, таймер, end panel) </summary>
+    public void SetSFXVolume(float volume01)
+    {
+        audioMixer.SetFloat("SFXVolume", LinearToDecibel(volume01));
+    }
+
+    /// <summary> Громкость двигателя </summary>
+    public void SetEngineVolume(float volume01)
+    {
+        audioMixer.SetFloat("EngineVolume", LinearToDecibel(volume01));
+    }
+
+    /// <summary> Громкость музыки (для внешнего музыкального AudioSource в группе Music) </summary>
+    public void SetMusicVolume(float volume01)
+    {
+        audioMixer.SetFloat("MusicVolume", LinearToDecibel(volume01));
+    }
+
+    // Конвертация линейного значения (0..1) в децибелы
+    private float LinearToDecibel(float linear)
+    {
+        float clamped = Mathf.Clamp(linear, 0.0001f, 1f);
+        return Mathf.Log10(clamped) * 20f;
     }
 }
